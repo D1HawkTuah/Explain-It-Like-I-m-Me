@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Explain It Like I'm Me</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<h1>Explain It Like I'm Me</h1>
+
+<textarea id="question" placeholder="Ask anything..."></textarea>
+
+<div class="controls">
+    <select id="level">
+        <option value="beginner">Beginner</option>
+        <option value="intermediate">Intermediate</option>
+        <option value="advanced">Advanced</option>
+    </select>
+
+    <select id="style">
+        <option value="simple">Simple</option>
+        <option value="analogy">Analogy</option>
+        <option value="step-by-step">Step-by-step</option>
+    </select>
+</div>
+
+<button onclick="getExplanation()">Explain</button>
+
+<a href="/dashboard">View Dashboard</a>
+
+<div id="output"></div>
+
+<script src="/static/app.js"></script>
+
+</body>
+</html>
