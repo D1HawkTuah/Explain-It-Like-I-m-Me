@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EILIM Memory Inspector</title>
+  <style>
+    :root {
+      --bg-1: #f3f7f5;
+      --bg-2: #dbe8e1;
+      --card: #ffffff;
+      --ink: #1c2730;
+      --accent: #0f766e;
+      --border: #d4dddb;
+      --muted: #5a6870;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(160deg, var(--bg-1), var(--bg-2));
+      min-height: 100vh;
+      padding: 22px;
+    }
+
+    .shell {
+      max-width: 980px;
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 18px rgba(22, 40, 45, 0.09);
+    }
+
+    h1 { margin: 0 0 8px; }
+    h2 { margin: 0 0 8px; }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      background: #edf8f6;
+      border: 1px solid #cceae4;
+      color: #145d57;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      margin-right: 6px;
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #f8fbfa;
+      margin: 8px 0;
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    pre {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 10px;
+      line-height: 1.45;
+    }
+
+    .links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 760px) {
+      .filters { grid-template-columns: 1fr 1fr; }
+    }
+
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="card">
+      <h1>Memory Inspector</h1>
+      <p class="subtle">Session-level semantic memory debugger for EILIM.</p>
+      <span class="pill">Session turns: {{ session_turn_count }}</span>
+      <div class="links">
+        <a href="/">Back to Tutor</a>
+        <a href="/memory/inspect.json" target="_blank" rel="noopener">Open Raw JSON</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Semantic Summary</h2>
+      <p>{{ semantic_context.summary or 'No summary available yet.' }}</p>
+    </section>
+
+    <section class="card">
+      <h2>Structured Semantic Fields</h2>
+
+      <details open>
+        <summary>latest_user_goal</summary>
+        <pre>{{ semantic_context.latest_user_goal }}</pre>
+      </details>
+
+      <details>
+        <summary>user_intents ({{ semantic_context.user_intents | length }})</summary>
+        <pre>{{ semantic_context.user_intents | tojson(indent=2) }}</pre>
+      </details>
+
+      <details>
+        <summary>assistant_key_points ({{ semantic_context.assistant_key_points | length }})</summary>
+        <pre>{{ semantic_context.assistant_key_points | tojson(indent=2) }}</pre>
+      </details>
+
+      <details>
+        <summary>full semantic_context object</summary>
+        <pre>{{ semantic_context | tojson(indent=2) }}</pre>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Chat Turns</h2>
+      <div class="filters">
+        <div>
+          <label for="roleFilter">Role</label>
+          <select id="roleFilter">
+            <option value="all">all</option>
+            <option value="user">user</option>
+            <option value="assistant">assistant</option>
+          </select>
+        </div>
+        <div>
+          <label for="keywordFilter">Keyword</label>
+          <input id="keywordFilter" placeholder="search text" />
+        </div>
+        <div>
+          <label for="turnStart">Turn Start</label>
+          <input id="turnStart" type="number" min="1" placeholder="1" />
+        </div>
+        <div>
+          <label for="turnEnd">Turn End</label>
+          <input id="turnEnd" type="number" min="1" placeholder="max" />
+        </div>
+      </div>
+
+      {% if chat_history and chat_history|length > 0 %}
+        {% for turn in chat_history %}
+          <details
+            class="turn-item"
+            data-role="{{ turn.role }}"
+            data-index="{{ loop.index }}"
+            data-text="{{ (turn.text or '')|lower }}"
+          >
+            <summary>Turn {{ loop.index }} - {{ turn.role }}</summary>
+            <pre>{{ turn | tojson(indent=2) }}</pre>
+          </details>
+        {% endfor %}
+      {% else %}
+        <p class="subtle">No chat history yet for this session.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const roleFilter = document.getElementById("roleFilter");
+      const keywordFilter = document.getElementById("keywordFilter");
+      const turnStart = document.getElementById("turnStart");
+      const turnEnd = document.getElementById("turnEnd");
+      const items = Array.from(document.querySelectorAll(".turn-item"));
+
+      function applyFilters() {
+        const role = (roleFilter?.value || "all").toLowerCase();
+        const keyword = (keywordFilter?.value || "").trim().toLowerCase();
+        const start = parseInt(turnStart?.value || "", 10);
+        const end = parseInt(turnEnd?.value || "", 10);
+
+        items.forEach((el) => {
+          const itemRole = (el.dataset.role || "").toLowerCase();
+          const idx = parseInt(el.dataset.index || "0", 10);
+          const text = (el.dataset.text || "").toLowerCase();
+
+          const roleOk = role === "all" || itemRole === role;
+          const keywordOk = !keyword || text.includes(keyword);
+          const startOk = Number.isNaN(start) || idx >= start;
+          const endOk = Number.isNaN(end) || idx <= end;
+
+          el.style.display = roleOk && keywordOk && startOk && endOk ? "block" : "none";
+        });
+      }
+
+      [roleFilter, keywordFilter, turnStart, turnEnd].forEach((el) => {
+        if (!el) return;
+        el.addEventListener("input", applyFilters);
+        el.addEventListener("change", applyFilters);
+      });
+
+      applyFilters();
+    })();
+  </script>
+</body>
+</html>
