@@ -7,43 +7,55 @@ from eilim import (
     tune_profile_from_feedback,
 )
 from eilim.models import Feedback, Interaction
+from eilim.validation import (
+    normalize_user_id,
+    parse_csv_field,
+    validate_display_name,
+    validate_knowledge_level,
+    validate_learning_style,
+    validate_quiz_score,
+    validate_rating,
+    validate_survey_preference,
+    VALID_KNOWLEDGE_LEVELS,
+    VALID_LEARNING_STYLES,
+    VALID_SURVEY_PREFERENCES,
+)
 
 
 def ask(prompt: str, default: str = "") -> str:
-    value = input(prompt).strip()
+    try:
+        value = input(prompt).strip()
+    except EOFError:
+        return default
     return value if value else default
-
-
-def parse_csv(value: str):
-    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def create_profile(user_id: str) -> UserProfile:
     print("\nLet us personalize your tutor profile.")
-    display_name = ask("Display name: ", user_id)
-    knowledge_level = ask("Knowledge level (beginner/intermediate/advanced) [beginner]: ", "beginner").lower()
-    learning_style = ask(
-        "Learning style (step-by-step/visual/story/code) [step-by-step]: ",
-        "step-by-step",
-    ).lower()
-    interests = parse_csv(ask("Interests (comma-separated, e.g., music,gaming,cooking): "))
-    domains = parse_csv(ask("Domains you care about (comma-separated, optional): "))
-    survey = ask(
-        "Survey preference (examples-first/analogy-first/step-by-step/visual-map) [examples-first]: ",
-        "examples-first",
-    ).lower()
+    display_name_raw = ask("Display name: ", user_id)
+    display_name = validate_display_name(display_name_raw, user_id)
+    knowledge_level = validate_knowledge_level(
+        ask("Knowledge level (beginner/intermediate/advanced) [beginner]: ", "beginner")
+    )
+    learning_style = validate_learning_style(
+        ask("Learning style (step-by-step/visual/story/code) [step-by-step]: ", "step-by-step")
+    )
+    interests = parse_csv_field(
+        ask("Interests (comma-separated, e.g., music,gaming,cooking): ", "")
+    )
+    domains = parse_csv_field(
+        ask("Domains you care about (comma-separated, optional): ", "")
+    )
+    survey = validate_survey_preference(
+        ask("Survey preference (examples-first/analogy-first/step-by-step/visual-map) [examples-first]: ", "examples-first")
+    )
     self_sample = ask(
         "How would you explain a concept to yourself? (1 short paragraph, optional): ",
         "",
     )
-    quiz_raw = ask("Quick calibration quiz score 0-3 (optional): ", "")
-
-    quiz_score = -1
-    if quiz_raw:
-        try:
-            quiz_score = max(0, min(3, int(quiz_raw)))
-        except ValueError:
-            quiz_score = -1
+    quiz_score = validate_quiz_score(
+        ask("Quick calibration quiz score 0-3 (optional): ", "")
+    )
 
     return UserProfile(
         user_id=user_id,
@@ -74,6 +86,14 @@ def show_profile(profile: UserProfile) -> None:
     )
 
 
+def show_commands() -> None:
+    print("\nCommands:")
+    print("- /profile: view current profile")
+    print("- /update: re-run onboarding and save profile")
+    print("- /help: show available commands")
+    print("- /quit: exit")
+
+
 def main() -> None:
     print("Explain-It-Like-I'm-Me (EILIM)")
     print("Adaptive tutor CLI\n")
@@ -82,7 +102,7 @@ def main() -> None:
     engine = EILIMEngine()
     llm = LLMExplainer()
 
-    user_id = ask("Your user ID: ", "guest")
+    user_id = normalize_user_id(ask("Your user ID: ", "guest"))
     profile = storage.load_profile(user_id)
 
     if profile is None:
@@ -95,23 +115,35 @@ def main() -> None:
     if llm.enabled:
         print(f"LLM mode enabled ({llm.model})")
     else:
-        print("LLM mode disabled (set OPENAI_API_KEY to enable). Using local adaptive engine.")
+        print("LLM mode disabled (set EILIM_LLM_API_KEY to enable). Using local adaptive engine.")
 
-    print("\nCommands: /profile to view, /update to edit, /quit to exit")
+    show_commands()
 
     while True:
-        topic = ask("\nWhat do you want explained? ")
+        try:
+            topic = ask("\nWhat do you want explained? ")
+        except KeyboardInterrupt:
+            print("\nSee you next session.")
+            break
 
-        if topic.lower() == "/quit":
+        normalized_topic = topic.strip().lower()
+
+        if normalized_topic == "/quit":
             print("See you next session.")
             break
-        if topic.lower() == "/profile":
+        if normalized_topic == "/profile":
             show_profile(profile)
             continue
-        if topic.lower() == "/update":
+        if normalized_topic == "/update":
             profile = create_profile(user_id)
             storage.save_profile(profile)
             print("Profile updated.")
+            continue
+        if normalized_topic == "/help":
+            show_commands()
+            continue
+        if normalized_topic.startswith("/"):
+            print("Unknown command. Type /help for available commands.")
             continue
         if not topic:
             print("Please enter a topic or /quit.")
@@ -141,31 +173,29 @@ def main() -> None:
         )
         storage.save_interaction(interaction)
 
-        rating_raw = ask("\nRate this explanation 1-5 (or press enter to skip): ")
-        if rating_raw:
-            try:
-                rating = max(1, min(5, int(rating_raw)))
-                comment = ask("Optional feedback comment: ")
-                storage.save_feedback(
-                    Feedback(user_id=user_id, topic=topic, rating=rating, comment=comment)
-                )
+        rating = validate_rating(
+            ask("\nRate this explanation 1-5 (or press enter to skip): ", "")
+        )
+        if rating >= 1:
+            comment = ask("Optional feedback comment: ")
+            storage.save_feedback(
+                Feedback(user_id=user_id, topic=topic, rating=rating, comment=comment)
+            )
 
-                history = storage.recent_feedback(user_id=user_id, limit=5)
-                latest = history[-1]
-                profile, updates = tune_profile_from_feedback(
-                    profile=profile,
-                    latest_feedback=latest,
-                    recent_feedback=history,
-                )
-                storage.save_profile(profile)
+            history = storage.recent_feedback(user_id=user_id, limit=5)
+            latest = history[-1]
+            profile, updates = tune_profile_from_feedback(
+                profile=profile,
+                latest_feedback=latest,
+                recent_feedback=history,
+            )
+            storage.save_profile(profile)
 
-                print("Feedback saved. Thanks.")
-                if updates:
-                    print("Profile auto-tuned from feedback:")
-                    for update in updates:
-                        print(f"- {update}")
-            except ValueError:
-                print("Invalid rating. Skipped feedback save.")
+            print("Feedback saved. Thanks.")
+            if updates:
+                print("Profile auto-tuned from feedback:")
+                for update in updates:
+                    print(f"- {update}")
 
 
 if __name__ == "__main__":

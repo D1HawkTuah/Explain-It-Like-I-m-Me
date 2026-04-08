@@ -1,0 +1,11 @@
+{
+  "user_id": "test",
+  "display_name": "test",
+  "knowledge_level": "intermediate",
+  "learning_style": "step-by-step",
+  "interests": [],
+  "domains_of_focus": [],
+  "self_explainer_sample": "",
+  "onboarding_survey": "examples-first",
+  "calibration_quiz_score": -1
+}

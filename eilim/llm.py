@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, List, Optional
 
@@ -8,15 +9,37 @@ except ImportError:  # pragma: no cover - handled in runtime logic
 
 from .models import UserProfile
 
+logger = logging.getLogger(__name__)
+
 
 class LLMExplainer:
     def __init__(self, model: Optional[str] = None) -> None:
-        self.model = model or os.getenv("EILIM_OPENAI_MODEL", "gpt-4.1-mini")
-        self._api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        self.model = model or os.getenv("EILIM_LLM_MODEL", "qwen3.6-plus")
+        self.base_url = os.getenv(
+            "EILIM_LLM_BASE_URL",
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        ).strip()
+        self._api_key = os.getenv("EILIM_LLM_API_KEY", "").strip() or os.getenv(
+            "OPENAI_API_KEY", ""
+        ).strip()
         self._client: Optional[OpenAI] = None
 
         if self._api_key and OpenAI is not Any:
-            self._client = OpenAI(api_key=self._api_key)
+            try:
+                self._client = OpenAI(api_key=self._api_key, base_url=self.base_url)
+                logger.info(
+                    "LLMExplainer initialized with model=%s base_url=%s",
+                    self.model,
+                    self.base_url,
+                )
+            except Exception as e:
+                logger.error(f"Failed to initialize OpenAI client: {str(e)[:100]}")
+                self._client = None
+        else:
+            if not self._api_key:
+                logger.debug("EILIM_LLM_API_KEY not set; LLM mode will be disabled")
+            if OpenAI is Any:
+                logger.debug("OpenAI library not installed; LLM mode unavailable")
 
     @property
     def enabled(self) -> bool:
@@ -31,7 +54,7 @@ class LLMExplainer:
         semantic_context: Optional[dict[str, object]] = None,
     ) -> str:
         if not self._client:
-            raise RuntimeError("OpenAI is not configured. Set OPENAI_API_KEY.")
+            raise RuntimeError("LLM client not initialized. Check EILIM_LLM_API_KEY.")
 
         system_prompt = (
             "You are EILIM, an adaptive tutor. Tailor explanations to the user profile. "
@@ -46,18 +69,26 @@ class LLMExplainer:
             semantic_context,
         )
 
-        response = self._client.responses.create(
-            model=self.model,
-            input=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.6,
-        )
-        text = response.output_text.strip()
-        if not text:
-            raise RuntimeError("Model returned an empty explanation.")
-        return text
+        try:
+            response = self._client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.6,
+            )
+            text = (response.choices[0].message.content or "").strip()
+            if not text:
+                raise RuntimeError("Model returned an empty explanation.")
+            logger.debug(f"LLM API call successful for topic: {topic[:40]}")
+            return text
+        except RuntimeError as e:
+            logger.error(f"LLM API error (config/model issue): {str(e)[:100]}")
+            raise
+        except Exception as e:
+            logger.error(f"LLM API exception ({type(e).__name__}): {str(e)[:100]}")
+            raise RuntimeError(f"LLM request failed: {type(e).__name__}") from e
 
     @staticmethod
     def _build_user_prompt(

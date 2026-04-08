@@ -105,23 +105,29 @@ The HTML memory inspector includes client-side filters for:
 - keyword search
 - turn range (start/end)
 
-## Enable OpenAI Responses (Optional)
+## Enable Qwen Responses (Optional)
 
-EILIM now supports live model-generated explanations in addition to the local rule-based engine.
+EILIM supports live model-generated explanations via a Qwen-compatible API in addition to the local rule-based engine.
 
 1. Set your API key:
 
 	```bash
-	export OPENAI_API_KEY="your_api_key_here"
+	export EILIM_LLM_API_KEY="your_api_key_here"
 	```
 
-2. (Optional) Set a model:
+2. (Optional) Set base URL (default is DashScope compatible endpoint):
 
 	```bash
-	export EILIM_OPENAI_MODEL="gpt-4.1-mini"
+	export EILIM_LLM_BASE_URL="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 	```
 
-3. Start the app normally:
+3. (Optional) Set a model:
+
+	```bash
+	export EILIM_LLM_MODEL="qwen3.6-plus"
+	```
+
+4. Start the app normally:
 
 	```bash
 	python main.py
