@@ -12,8 +12,11 @@ class EILIMEngine:
         semantic_context: dict[str, object] | None = None,
     ) -> str:
         domain = self.infer_domain(topic)
+        topic_label = self._topic_label(topic)
         analogy = self._pick_analogy(profile.interests, topic)
-        depth = self._depth_line(profile.knowledge_level, domain)
+        quick_take = self._quick_take(topic_label, profile.knowledge_level, domain)
+        topic_specific = self._topic_specific_explanation(topic, profile.knowledge_level)
+        depth = topic_specific or self._domain_explanation(topic_label, profile.knowledge_level, domain)
         style_block = self._style_block(profile.learning_style, topic)
         continuity = self._continuity_line(recent_topics)
         memory_line = self._memory_line(semantic_context)
@@ -25,7 +28,7 @@ class EILIMEngine:
                 f"Domain guess: {domain}",
                 "",
                 "Quick take:",
-                self._quick_take(topic, profile.knowledge_level),
+                quick_take,
                 "",
                 "Core explanation:",
                 depth,
@@ -49,6 +52,8 @@ class EILIMEngine:
         text = topic.lower()
         if any(word in text for word in ["math", "algebra", "calculus", "equation"]):
             return "school-math"
+        if any(word in text for word in ["physics", "gravity", "force", "orbit", "motion", "energy"]):
+            return "school-physics"
         if any(word in text for word in ["chem", "atom", "reaction", "molecule"]):
             return "school-chemistry"
         if any(word in text for word in ["history", "war", "empire", "revolution"]):
@@ -62,38 +67,192 @@ class EILIMEngine:
         return "general-knowledge"
 
     @staticmethod
-    def _quick_take(topic: str, level: str) -> str:
+    def _quick_take(topic_label: str, level: str, domain: str) -> str:
         if level == "advanced":
             return (
-                f"{topic} is easiest to understand as a system with inputs, rules, and outputs. "
-                "If you track all three, most confusion disappears."
+                f"{topic_label.title()} in {domain} is best understood by modeling mechanism, assumptions, "
+                "and limits together."
             )
         if level == "intermediate":
             return (
-                f"{topic} is about connecting cause and effect. "
-                "If you spot what changes and what stays fixed, it clicks fast."
+                f"{topic_label.title()} becomes clearer when you track what causes change, "
+                "what stays constant, and what outcome you can predict."
             )
         return (
-            f"{topic} is just a way to answer a practical question. "
-            "We break it into tiny pieces and solve one piece at a time."
+            f"{topic_label.title()} means understanding what it is, how it works, and where you see it in real life."
         )
 
     @staticmethod
-    def _depth_line(level: str, domain: str) -> str:
+    def _domain_explanation(topic_label: str, level: str, domain: str) -> str:
+        if domain == "school-math":
+            if level == "advanced":
+                return (
+                    f"For {topic_label}, represent the problem symbolically, test assumptions, and check edge cases. "
+                    "Most mistakes come from hidden constraints or domain restrictions."
+                )
+            if level == "intermediate":
+                return (
+                    f"For {topic_label}, identify variables, write the relationship as an equation, "
+                    "then solve while checking units and signs."
+                )
+            return (
+                f"For {topic_label}, start with known numbers, identify the unknown, and apply one rule at a time. "
+                "Example: if two quantities change together, write a simple equation to connect them."
+            )
+
+        if domain == "school-physics":
+            if level == "advanced":
+                return (
+                    f"Analyze {topic_label} through conservation laws, reference frames, and model validity. "
+                    "Use approximations deliberately and state when they break down."
+                )
+            if level == "intermediate":
+                return (
+                    f"For {topic_label}, connect force, motion, and energy: ask what force acts, "
+                    "how velocity changes, and where energy transfers."
+                )
+            return (
+                f"For {topic_label}, ask: what is pushing or pulling, what moves, and how fast it changes. "
+                "That gives you a simple cause-and-effect picture."
+            )
+
+        if domain == "school-chemistry":
+            if level == "advanced":
+                return (
+                    f"Treat {topic_label} with structure-property relationships, equilibrium dynamics, and energetics. "
+                    "Predict behavior from bonding and electron distribution."
+                )
+            if level == "intermediate":
+                return (
+                    f"For {topic_label}, track reactants, products, and conditions like temperature or concentration. "
+                    "Then use balanced equations to quantify change."
+                )
+            return (
+                f"For {topic_label}, think of atoms rearranging into new combinations. "
+                "A chemical equation is a before-and-after map of that rearrangement."
+            )
+
+        if domain == "school-history":
+            if level == "advanced":
+                return (
+                    f"Study {topic_label} by comparing sources, bias, and long-term structural causes "
+                    "alongside short-term triggers."
+                )
+            if level == "intermediate":
+                return (
+                    f"For {topic_label}, build a timeline of causes, key events, and consequences. "
+                    "Then compare perspectives from different groups involved."
+                )
+            return (
+                f"For {topic_label}, ask three questions: what happened, why it happened, and what changed after. "
+                "That gives a usable history summary."
+            )
+
+        if domain == "personal-finance":
+            if level == "advanced":
+                return (
+                    f"For {topic_label}, model risk, liquidity, taxes, and compounding together. "
+                    "Evaluate trade-offs under different scenarios."
+                )
+            if level == "intermediate":
+                return (
+                    f"For {topic_label}, calculate cash flow first, then compare options by total cost, "
+                    "risk exposure, and time horizon."
+                )
+            return (
+                f"For {topic_label}, start with income vs expenses, then check fees, interest, and due dates. "
+                "Simple tracking prevents most common mistakes."
+            )
+
+        if domain == "medical-basics":
+            if level == "advanced":
+                return (
+                    f"For {topic_label}, connect physiology, differential diagnosis logic, and evidence quality. "
+                    "Use this as educational context, not personal medical advice."
+                )
+            if level == "intermediate":
+                return (
+                    f"For {topic_label}, map symptoms to body systems, note likely causes, "
+                    "and identify red flags that require professional care."
+                )
+            return (
+                f"For {topic_label}, focus on what the condition is, common signs, and when to seek help. "
+                "This is educational information, not a diagnosis."
+            )
+
+        if domain == "tech-troubleshooting":
+            if level == "advanced":
+                return (
+                    f"Troubleshoot {topic_label} with layered isolation: hardware, network, OS, app, then config drift. "
+                    "Use reproducible checks at each layer."
+                )
+            if level == "intermediate":
+                return (
+                    f"For {topic_label}, verify power/connection, test network path, inspect settings, and check logs. "
+                    "Change one variable at a time to find the fault."
+                )
+            return (
+                f"For {topic_label}, try a simple order: restart, reconnect, update, and retest. "
+                "If one step changes behavior, you found a useful clue."
+            )
+
         if level == "advanced":
             return (
-                f"At an advanced level in {domain}, focus on edge-cases, assumptions, and trade-offs. "
-                "Ask what happens when conditions are extreme or noisy."
+                f"For {topic_label}, define the core model, test assumptions, and note where the model stops working."
             )
         if level == "intermediate":
             return (
-                f"At an intermediate level in {domain}, focus on the mechanism: "
-                "what triggers each step and why each step matters."
+                f"For {topic_label}, explain the mechanism in order: inputs, process, and outcome. "
+                "Then test with one concrete example."
             )
         return (
-            f"At a beginner level in {domain}, focus on vocabulary first, then one concrete example, "
-            "then repeat with a second example."
+            f"For {topic_label}, start with a plain definition, then walk one real-world example step by step."
         )
+
+    @staticmethod
+    def _topic_label(topic: str) -> str:
+        cleaned = " ".join(topic.strip().split())
+        lowered = cleaned.lower()
+        prefixes = [
+            "teach me about ",
+            "explain ",
+            "what is ",
+            "what are ",
+            "how does ",
+            "how do ",
+            "help me understand ",
+        ]
+        for prefix in prefixes:
+            if lowered.startswith(prefix):
+                trimmed = cleaned[len(prefix):].strip(" ?.!")
+                return trimmed or cleaned
+        return cleaned.strip(" ?.!")
+
+    @staticmethod
+    def _topic_specific_explanation(topic: str, level: str) -> str:
+        text = topic.lower()
+
+        if "gravity" in text:
+            if level == "advanced":
+                return (
+                    "Gravity is modeled by Newtonian attraction at many scales "
+                    "($F = G*(m1*m2)/r^2$), while general relativity reframes it as spacetime curvature. "
+                    "Use Newton's model for most everyday calculations and switch to relativity in strong fields, "
+                    "high precision timing, or near-light-speed regimes."
+                )
+            if level == "intermediate":
+                return (
+                    "Gravity is the attraction between masses, and the pull weakens with distance by an inverse-square rule. "
+                    "That is why planets stay in orbit and why objects near Earth accelerate downward at about 9.8 m/s^2 "
+                    "before air resistance changes what we observe."
+                )
+            return (
+                "Gravity is the pull between things that have mass. "
+                "It makes dropped objects fall and keeps the Moon and satellites around Earth. "
+                "Near Earth's surface, gravity gives objects a downward acceleration of about 9.8 m/s^2."
+            )
+
+        return ""
 
     @staticmethod
     def _pick_analogy(interests: List[str], topic: str) -> str:

@@ -1,0 +1,9 @@
+{
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "."
+  ],
+  "code-runner.executorMap": {
+    "python": "python -u"
+  }
+}
