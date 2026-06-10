@@ -214,8 +214,8 @@
             <option value="visual-map" {% if profile and profile.onboarding_survey == 'visual-map' %}selected{% endif %}>visual-map</option>
           </select>
 
-          <label>How You Explain To Yourself (short paragraph)</label>
-          <textarea name="self_explainer_sample" placeholder="When I learn, I start from a simple example and then connect it to what I already know.">{{ profile.self_explainer_sample if profile else '' }}</textarea>
+          <label>📝 How do you make something click for yourself?</label>
+          <textarea name="self_explainer_sample" placeholder="In a few sentences, describe what you do when you’re trying to understand a new idea on your own. For example: ‘I try to find a real-life situation where it happens, then break it into before/after steps.’ or ‘I imagine explaining it to a friend using a simple metaphor first.’">{{ profile.self_explainer_sample if profile else '' }}</textarea>
 
           <label>Quick Calibration Quiz Score (0-3)</label>
           <input name="calibration_quiz_score" type="number" min="0" max="3" value="{{ profile.calibration_quiz_score if profile and profile.calibration_quiz_score >= 0 else '' }}" />

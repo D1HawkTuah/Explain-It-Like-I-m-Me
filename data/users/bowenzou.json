@@ -1,0 +1,18 @@
+{
+  "user_id": "Bowen Zou",
+  "display_name": "bowz",
+  "knowledge_level": "intermediate",
+  "learning_style": "story",
+  "interests": [
+    "music",
+    "gaming",
+    "cooking"
+  ],
+  "domains_of_focus": [
+    "math",
+    "finance"
+  ],
+  "self_explainer_sample": "When I learn i start with a simple example",
+  "onboarding_survey": "visual-map",
+  "calibration_quiz_score": 3
+}
