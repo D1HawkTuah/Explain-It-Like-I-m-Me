@@ -1,3 +1,4 @@
 openai>=1.30.0
 flask>=3.0.0
 pytest>=8.0.0
+edge-tts>=6.1.0

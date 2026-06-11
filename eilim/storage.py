@@ -1,5 +1,7 @@
 import json
 import logging
+import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -14,7 +16,10 @@ class JSONStorage:
         self.users_dir = self.root / "users"
         self.interactions_file = self.root / "interactions.jsonl"
         self.feedback_file = self.root / "feedback.jsonl"
+        self.db_path = self.root / "eilim.db"
         self.users_dir.mkdir(parents=True, exist_ok=True)
+        self.root.mkdir(parents=True, exist_ok=True)
+        self._init_database()
 
     def _user_file(self, user_id: str) -> Path:
         safe_id = "".join(ch for ch in user_id.strip().lower() if ch.isalnum() or ch in "-_")
@@ -62,6 +67,84 @@ class JSONStorage:
         except Exception as e:
             logger.error(f"Failed to save feedback: {str(e)[:80]}")
             raise
+
+    def save_conversation_turn(
+        self,
+        user_id: str,
+        role: str,
+        text: str,
+        source: str | None = None,
+        created_at: str | None = None,
+    ) -> None:
+        if created_at is None:
+            created_at = datetime.now(timezone.utc).isoformat()
+
+        with self._sqlite_connection() as conn:
+            cursor = conn.execute(
+                "SELECT MAX(turn_index) FROM conversations WHERE user_id = ?",
+                (user_id,),
+            )
+            result = cursor.fetchone()
+            last_index = result[0] if result and result[0] is not None else -1
+            next_index = last_index + 1
+            conn.execute(
+                "INSERT INTO conversations (user_id, turn_index, role, text, source, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, next_index, role, text, source or "", created_at),
+            )
+
+    def conversation_history(self, user_id: str, limit: int = 50) -> List[Dict[str, str]]:
+        if not self.db_path.exists():
+            return []
+
+        with self._sqlite_connection() as conn:
+            rows = conn.execute(
+                "SELECT role, text, source, created_at FROM conversations WHERE user_id = ? ORDER BY turn_index ASC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+
+        return [
+            {
+                "role": row["role"],
+                "text": row["text"],
+                "source": row["source"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    def clear_conversation_history(self, user_id: str) -> None:
+        with self._sqlite_connection() as conn:
+            conn.execute("DELETE FROM conversations WHERE user_id = ?", (user_id,))
+
+    def _sqlite_connection(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(
+            str(self.db_path),
+            timeout=30,
+            check_same_thread=False,
+        )
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+    def _init_database(self) -> None:
+        with self._sqlite_connection() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    turn_index INTEGER NOT NULL,
+                    role TEXT NOT NULL,
+                    text TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_conversations_user_id_turn_index ON conversations (user_id, turn_index)"
+            )
 
     def recent_feedback(self, user_id: str, limit: int = 5) -> List[Feedback]:
         if not self.feedback_file.exists():

@@ -3,310 +3,410 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EILIM Web Tutor</title>
+  <title>EILIM Tutor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-1: #f4f6f2;
-      --bg-2: #dce8e4;
-      --card: #ffffff;
-      --ink: #1f2a2f;
-      --accent: #006d77;
-      --accent-2: #ee9b00;
-      --muted: #5b6b70;
-      --border: #d4dcdb;
+      color-scheme: light;
+      font-family: Inter, system-ui, sans-serif;
+      background: #f4f6f2;
+      color: #102027;
+      --surface: #ffffff;
+      --surface-muted: #f6f8f7;
+      --border: #d9e2de;
+      --text: #102027;
+      --muted: #5f6c70;
+      --primary: #0f6c69;
+      --accent: #ee9b00;
     }
-
     * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 20% 10%, #ffffff 0%, transparent 30%),
-        radial-gradient(circle at 80% 20%, #e8f3ef 0%, transparent 25%),
-        linear-gradient(145deg, var(--bg-1), var(--bg-2));
-      min-height: 100vh;
-      padding: 24px;
-    }
-
-    .shell {
-      max-width: 980px;
-      margin: 0 auto;
-      display: grid;
-      gap: 18px;
-    }
-
-    .hero {
-      background: linear-gradient(120deg, #0a9396, #005f73);
-      color: #fff;
-      border-radius: 18px;
-      padding: 22px;
-      box-shadow: 0 12px 30px rgba(0, 70, 80, 0.22);
-    }
-
-    .hero h1 {
-      margin: 0 0 8px;
-      letter-spacing: 0.4px;
-      font-size: clamp(1.4rem, 4vw, 2rem);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    @media (max-width: 860px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 6px 16px rgba(18, 40, 44, 0.08);
-      animation: fadeIn 0.35s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    label {
-      display: block;
-      font-size: 0.9rem;
-      color: var(--muted);
-      margin: 10px 0 6px;
-    }
-
-    input, select, textarea, button {
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 11px;
-      font-size: 0.95rem;
-      font-family: inherit;
-    }
-
-    textarea { min-height: 80px; resize: vertical; }
-
-    button {
-      cursor: pointer;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      margin-top: 12px;
-      transition: transform 0.15s ease, opacity 0.15s ease;
-    }
-
-    button:hover { opacity: 0.95; transform: translateY(-1px); }
-
-    .subtle {
-      font-size: 0.86rem;
-      color: var(--muted);
-    }
-
-    .pill {
-      display: inline-block;
-      border-radius: 999px;
-      background: #edf6f9;
-      color: #264653;
-      border: 1px solid #d1e6e9;
-      padding: 4px 10px;
-      margin-right: 6px;
-      font-size: 0.78rem;
-    }
-
-    .warn {
-      border-left: 4px solid var(--accent-2);
-      padding-left: 10px;
-      color: #4a3d1b;
-      margin-top: 8px;
-    }
-
-    .chatlog {
-      max-height: 280px;
-      overflow: auto;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      background: #f7fbfa;
-      margin-top: 10px;
-    }
-
-    .turn {
-      margin: 8px 0;
-      padding: 8px 10px;
-      border-radius: 10px;
-      line-height: 1.35;
-    }
-
-    .turn.user {
-      background: #dff2f0;
-      border: 1px solid #c4e7e2;
-    }
-
-    .turn.assistant {
-      background: #f1f3f5;
-      border: 1px solid #e1e4e8;
-    }
-
-    pre {
-      white-space: pre-wrap;
-      background: #f8faf9;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
-      line-height: 1.45;
-    }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 10% 10%, #ffffff 0%, transparent 26%), linear-gradient(180deg, #eef5f1 0%, #f4f7f4 100%); }
+    .page { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
+    .hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
+    .hero h1 { margin: 0; font-size: clamp(2rem, 3.4vw, 3rem); line-height: 1.05; }
+    .hero p { margin: 10px 0 0; max-width: 730px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 20px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 22px; box-shadow: 0 22px 60px rgba(18, 37, 43, 0.08); }
+    h2 { margin: 0 0 8px; font-size: 1.3rem; }
+    label { display: block; margin: 10px 0 6px; color: var(--muted); font-size: 0.92rem; }
+    input, select, textarea, button { font: inherit; }
+    input, select, textarea { width: 100%; border: 1px solid var(--border); border-radius: 14px; background: #fff; color: var(--text); padding: 12px 14px; }
+    textarea { min-height: 96px; resize: vertical; }
+    button { border: none; border-radius: 14px; padding: 12px 16px; background: var(--primary); color: #fff; cursor: pointer; transition: transform 0.16s ease, box-shadow 0.16s ease; }
+    button:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 108, 105, 0.18); }
+    .pill { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px; background: #edf8f5; color: #0c5d58; font-size: 0.82rem; margin-right: 6px; margin-bottom: 6px; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: rgba(18, 37, 43, 0.95); color: #fff; border-radius: 16px; padding: 14px 18px; box-shadow: 0 18px 40px rgba(0,0,0,0.18); display: none; z-index: 50; }
+    .toast.visible { display: block; }
+    .chat-window { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 24px; min-height: 460px; display: flex; flex-direction: column; }
+    .chat-body { flex: 1; overflow-y: auto; padding: 20px; display: grid; gap: 14px; }
+    .message { max-width: 86%; padding: 16px 18px; border-radius: 20px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .message.user { margin-left: auto; background: #d9f3f0; border: 1px solid rgba(13, 89, 86, 0.12); }
+    .message.assistant { margin-right: auto; background: #fff; border: 1px solid var(--border); }
+    .message .meta { display: block; margin-bottom: 8px; font-size: 0.82rem; color: var(--muted); }
+    .message code, .message pre { font-family: ui-monospace, SFMono-Regular, Consolas, Monaco, monospace; background: #f3f6f5; padding: 8px 10px; border-radius: 12px; overflow-x: auto; }
+    .message .listen-button { margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: #f0f8f6; color: var(--text); border-radius: 12px; padding: 8px 12px; cursor: pointer; font-size: 0.92rem; }
+    .message .listen-button:hover { background: #e1f3ec; }
+    .chat-footer { padding: 18px; border-top: 1px solid var(--border); display: grid; gap: 12px; }
+    .sidebar { display: grid; gap: 20px; }
+    .sidebar .section { border-radius: 20px; background: var(--surface); padding: 18px; border: 1px solid var(--border); }
+    .sidebar .section h3 { margin: 0 0 10px; }
+    .sidebar .summary { font-size: 0.94rem; color: var(--muted); line-height: 1.7; }
+    .sidebar .help-note { font-size: 0.9rem; color: var(--muted); }
+    .status-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid rgba(15, 108, 105, 0.12); border-top-color: var(--primary); animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); }}
   </style>
 </head>
 <body>
-  <div class="shell">
-    <section class="hero">
-      <h1>Explain-It-Like-I'm-Me</h1>
-      <div>Adaptive tutoring that learns your style and tunes future explanations.</div>
-      <div style="margin-top: 8px;">
-        <a href="/memory/inspect" target="_blank" rel="noopener" style="color: #dff8ff;">Open Memory Inspector</a>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <h1>EILIM Tutor</h1>
+        <p>Ask anything and get an adaptive explanation that learns from your profile, conversation context, and past sessions.</p>
       </div>
-    </section>
+      <div style="text-align:right;">
+        <a href="/memory/inspect" style="color:#0f6c69; text-decoration:none; font-weight:600;">Memory Inspector</a>
+      </div>
+    </header>
 
     <div class="grid">
-      <section class="card">
-        <h2>Ask EILIM</h2>
-        <form action="/explain" method="post">
-          <label>User ID</label>
-          <input name="user_id" placeholder="guest" value="{{ user_id or '' }}" required />
-
-          <label>Display Name</label>
-          <input name="display_name" placeholder="optional" value="{{ profile.display_name if profile else '' }}" />
-
-          <label>Knowledge Level</label>
-          <select name="knowledge_level">
-            <option value="beginner" {% if profile and profile.knowledge_level == 'beginner' %}selected{% endif %}>beginner</option>
-            <option value="intermediate" {% if profile and profile.knowledge_level == 'intermediate' %}selected{% endif %}>intermediate</option>
-            <option value="advanced" {% if profile and profile.knowledge_level == 'advanced' %}selected{% endif %}>advanced</option>
-          </select>
-
-          <label>Learning Style</label>
-          <select name="learning_style">
-            <option value="step-by-step" {% if profile and profile.learning_style == 'step-by-step' %}selected{% endif %}>step-by-step</option>
-            <option value="visual" {% if profile and profile.learning_style == 'visual' %}selected{% endif %}>visual</option>
-            <option value="story" {% if profile and profile.learning_style == 'story' %}selected{% endif %}>story</option>
-            <option value="code" {% if profile and profile.learning_style == 'code' %}selected{% endif %}>code</option>
-          </select>
-
-          <label>Interests (comma-separated)</label>
-          <input name="interests" placeholder="music, gaming, cooking" value="{{ ', '.join(profile.interests) if profile else '' }}" />
-
-          <label>Focus Domains (comma-separated)</label>
-          <input name="domains_of_focus" placeholder="math, finance" value="{{ ', '.join(profile.domains_of_focus) if profile else '' }}" />
-
-          <label>Onboarding Survey Preference</label>
-          <select name="onboarding_survey">
-            <option value="" {% if not profile or not profile.onboarding_survey %}selected{% endif %}>choose one</option>
-            <option value="examples-first" {% if profile and profile.onboarding_survey == 'examples-first' %}selected{% endif %}>examples-first</option>
-            <option value="analogy-first" {% if profile and profile.onboarding_survey == 'analogy-first' %}selected{% endif %}>analogy-first</option>
-            <option value="step-by-step" {% if profile and profile.onboarding_survey == 'step-by-step' %}selected{% endif %}>step-by-step</option>
-            <option value="visual-map" {% if profile and profile.onboarding_survey == 'visual-map' %}selected{% endif %}>visual-map</option>
-          </select>
-
-          <label>📝 How do you make something click for yourself?</label>
-          <textarea name="self_explainer_sample" placeholder="In a few sentences, describe what you do when you’re trying to understand a new idea on your own. For example: ‘I try to find a real-life situation where it happens, then break it into before/after steps.’ or ‘I imagine explaining it to a friend using a simple metaphor first.’">{{ profile.self_explainer_sample if profile else '' }}</textarea>
-
-          <label>Quick Calibration Quiz Score (0-3)</label>
-          <input name="calibration_quiz_score" type="number" min="0" max="3" value="{{ profile.calibration_quiz_score if profile and profile.calibration_quiz_score >= 0 else '' }}" />
-
-          <label>Topic</label>
-          <textarea name="topic" placeholder="Explain compound interest like I'm just starting out">{{ topic or '' }}</textarea>
-
-          <button type="submit">Generate Explanation</button>
+      <section class="chat-window card">
+        <div class="status-line">
+          <span class="pill">Source: <strong id="source-label">{{ source or 'idle' }}</strong></span>
+          {% if profile %}
+            <span class="pill">Level: {{ profile.knowledge_level }}</span>
+            <span class="pill">Style: {{ profile.learning_style }}</span>
+          {% endif %}
+          <div id="spinner" class="spinner" style="display:none;"></div>
+        </div>
+        <div id="chatBody" class="chat-body" aria-live="polite">
+          {% if chat_history %}
+            {% for turn in chat_history %}
+              <article class="message {{ turn.role }}">
+                <span class="meta">{{ turn.role | capitalize }}{% if turn.source %} • {{ turn.source }}{% endif %}</span>
+                <div class="rendered-message" data-content="{{ turn.text | e }}"></div>
+              </article>
+            {% endfor %}
+          {% else %}
+            <div class="message assistant">
+              <span class="meta">Assistant</span>
+              <div>Welcome to EILIM. Type a topic below to start a personalized chat. Your conversation history will be saved to your profile.</div>
+            </div>
+          {% endif %}
+        </div>
+        <form id="chatForm" class="chat-footer" method="post" action="/explain">
+          <input type="hidden" name="user_id" id="userId" value="{{ user_id or 'guest' }}" />
+          <div style="display:grid; gap:12px; grid-template-columns:1fr 1fr;">
+            <div>
+              <label for="topicInput">Ask about</label>
+              <input id="topicInput" name="topic" placeholder="Explain compound interest using stories" value="{{ topic or '' }}" required />
+            </div>
+            <div>
+              <label for="userName">Name</label>
+              <input id="userName" name="display_name" placeholder="Display name" value="{{ profile.display_name if profile else '' }}" />
+            </div>
+          </div>
+          <div style="display:grid; gap:12px; grid-template-columns:1fr 1fr;">
+            <div>
+              <label for="knowledgeLevel">Knowledge level</label>
+              <select id="knowledgeLevel" name="knowledge_level">
+                <option value="beginner" {% if profile and profile.knowledge_level == 'beginner' %}selected{% endif %}>Beginner</option>
+                <option value="intermediate" {% if profile and profile.knowledge_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                <option value="advanced" {% if profile and profile.knowledge_level == 'advanced' %}selected{% endif %}>Advanced</option>
+              </select>
+            </div>
+            <div>
+              <label for="learningStyle">Learning style</label>
+              <select id="learningStyle" name="learning_style">
+                <option value="step-by-step" {% if profile and profile.learning_style == 'step-by-step' %}selected{% endif %}>Step-by-step</option>
+                <option value="visual" {% if profile and profile.learning_style == 'visual' %}selected{% endif %}>Visual</option>
+                <option value="story" {% if profile and profile.learning_style == 'story' %}selected{% endif %}>Story</option>
+                <option value="code" {% if profile and profile.learning_style == 'code' %}selected{% endif %}>Code</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <button type="button" id="voiceInputButton" style="background:#fff;color:var(--text);border:1px solid var(--border);">🎙️ Speak</button>
+            <button type="submit">Send</button>
+          </div>
         </form>
       </section>
 
-      <section class="card">
-        <h2>Response</h2>
-        {% if source %}
-          <span class="pill">Source: {{ source }}</span>
-        {% endif %}
-        {% if profile %}
-          <span class="pill">Level: {{ profile.knowledge_level }}</span>
-          <span class="pill">Style: {{ profile.learning_style }}</span>
-        {% endif %}
-
-        {% if explanation %}
-          <pre>{{ explanation }}</pre>
-        {% else %}
-          <p class="subtle">Your personalized explanation will appear here.</p>
-        {% endif %}
-
-        {% if updates and updates|length > 0 %}
-          <div class="warn">
-            <strong>Profile auto-tuned:</strong>
-            <ul>
-              {% for update in updates %}
-                <li>{{ update }}</li>
-              {% endfor %}
-            </ul>
-          </div>
-        {% endif %}
-
-        <h3>Semantic Memory</h3>
-        {% if semantic_summary %}
-          <p class="subtle">{{ semantic_summary }}</p>
-        {% else %}
-          <p class="subtle">No semantic memory summary yet.</p>
-        {% endif %}
-
-        <h3>Session Chat History</h3>
-        {% if chat_history and chat_history|length > 0 %}
-          <div class="chatlog">
-            {% for turn in chat_history %}
-              <div class="turn {{ turn.role }}">
-                <strong>{{ turn.role.title() }}</strong>
-                {% if turn.source %}
-                  <span class="subtle"> ({{ turn.source }})</span>
-                {% endif %}
-                <div>{{ turn.text }}</div>
-              </div>
-            {% endfor %}
-          </div>
-          <form action="/chat/clear" method="post">
-            <button type="submit">Clear Session Chat</button>
-          </form>
-        {% else %}
-          <p class="subtle">No chat turns yet in this browser session.</p>
-        {% endif %}
-      </section>
-    </div>
-
-    <section class="card">
-      <h2>Feedback</h2>
-      <p class="subtle">Ratings and comments update your profile automatically for future explanations.</p>
-      <form action="/feedback" method="post">
-        <div class="grid">
-          <div>
-            <label>User ID</label>
-            <input name="user_id" value="{{ user_id or '' }}" required />
-          </div>
-          <div>
-            <label>Topic</label>
-            <input name="topic" placeholder="same topic you just asked" value="{{ topic or '' }}" required />
-          </div>
+      <aside class="sidebar">
+        <div class="section">
+          <h3>Profile</h3>
+          {% if profile %}
+            <p class="summary"><strong>{{ profile.display_name or user_id }}</strong> likes {{ profile.learning_style }} explanations at {{ profile.knowledge_level }} depth.</p>
+            <p class="help-note">Interests: {{ profile.interests | join(", ") or "None" }}</p>
+            <p class="help-note">Domains: {{ profile.domains_of_focus | join(", ") or "None" }}</p>
+          {% else %}
+            <p class="summary">No saved profile yet. Enter your details above and the system will remember them for future sessions.</p>
+          {% endif %}
         </div>
 
-        <label>Rating (1-5)</label>
-        <input name="rating" type="number" min="1" max="5" required />
+        <div class="section">
+          <h3>Recent memory</h3>
+          <p class="summary">{{ semantic_summary or "Your recent learning goals will appear here as you chat." }}</p>
+        </div>
 
-        <label>Comment</label>
-        <textarea name="comment" placeholder="Too complex, please use visual explanation"></textarea>
+        <div class="section">
+          <h3>Actions</h3>
+          <button id="clearChat" type="button" style="width:100%; background:#fff; color:var(--text); border:1px solid var(--border);">Clear conversation</button>
+          <button id="listenLatest" type="button" style="width:100%; margin-top:12px; background:#fff; color:var(--text); border:1px solid var(--border);">🔊 Listen to latest answer</button>
+          <p class="help-note">Your saved chats are stored per user and reused across sessions when you use the same user ID.</p>
+        </div>
+      </aside>
+    </div>
 
-        <button type="submit">Save Feedback</button>
-      </form>
-    </section>
+    <div id="toast" class="toast"></div>
   </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css" integrity="sha384-vZTG1+gkiG50wQpO9UEo7o+r4hSJKdTm4g8z20cJbbj6d5j4IxQwUtJ2hf2R+YgE" crossorigin="anonymous">
+  <script>
+    const toast = document.getElementById('toast');
+    const chatBody = document.getElementById('chatBody');
+    const sourceLabel = document.getElementById('source-label');
+    const spinner = document.getElementById('spinner');
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('visible');
+      window.setTimeout(() => toast.classList.remove('visible'), 3600);
+    }
+
+    function renderMarkdown(target, text) {
+      const html = marked.parse(text || '');
+      target.innerHTML = html;
+      renderMathInElement(target, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '$', right: '$', display: false},
+        ],
+        throwOnError: false,
+      });
+    }
+
+    const voiceButton = document.getElementById('voiceInputButton');
+    const listenLatestButton = document.getElementById('listenLatest');
+    let recognition = null;
+    let activeSpeech = false;
+
+    function canUseVoice() {
+      return 'speechSynthesis' in window && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+    }
+
+    let currentAudio = null;
+
+    async function speakText(text) {
+      // Try server-side TTS first
+      try {
+        const response = await fetch('/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text, voice: 'en-US-AriaNeural' }),
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const audioUrl = URL.createObjectURL(blob);
+          if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.src = '';
+          }
+          currentAudio = new Audio(audioUrl);
+          currentAudio.play().catch(() => {
+            showToast('Could not play audio.');
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('Server TTS failed, falling back to browser', err);
+      }
+
+      // Fallback to browser TTS
+      if (!('speechSynthesis' in window)) {
+        showToast('Speech synthesis is not supported in this browser.');
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function appendListenButton(message, text) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'listen-button';
+      button.textContent = '🔊 Listen';
+      button.addEventListener('click', () => speakText(text));
+      message.appendChild(button);
+    }
+
+    function appendTurn(role, text, source) {
+      const message = document.createElement('article');
+      message.className = `message ${role}`;
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = role.charAt(0).toUpperCase() + role.slice(1) + (source ? ` • ${source}` : '');
+      const content = document.createElement('div');
+      content.className = 'rendered-message';
+      renderMarkdown(content, text);
+      message.appendChild(meta);
+      message.appendChild(content);
+      if (role === 'assistant') {
+        appendListenButton(message, text);
+      }
+      chatBody.appendChild(message);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function startVoiceInput() {
+      if (!canUseVoice()) {
+        showToast('Voice input is not supported in this browser.');
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        showToast('Speech recognition is unavailable in this browser.');
+        return;
+      }
+
+      if (!recognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.addEventListener('result', (event) => {
+          const transcript = Array.from(event.results)
+            .map((result) => result[0].transcript)
+            .join('')
+            .trim();
+          if (transcript) {
+            document.getElementById('topicInput').value = transcript;
+            showToast('Captured voice input. Tap Send to ask.');
+          }
+        });
+
+        recognition.addEventListener('end', () => {
+          activeSpeech = false;
+          voiceButton.textContent = '🎙️ Speak';
+          voiceButton.disabled = false;
+        });
+
+        recognition.addEventListener('error', (event) => {
+          activeSpeech = false;
+          voiceButton.textContent = '🎙️ Speak';
+          voiceButton.disabled = false;
+          showToast('Voice recognition error.');
+          console.error('Speech recognition error', event.error);
+        });
+      }
+
+      if (activeSpeech) {
+        recognition.stop();
+        return;
+      }
+
+      activeSpeech = true;
+      voiceButton.textContent = '🎙️ Listening...';
+      recognition.start();
+    }
+
+    function addGlobalListenHandlers() {
+      document.querySelectorAll('#chatBody .message.assistant').forEach((message) => {
+        const content = message.querySelector('.rendered-message');
+        if (content && !message.querySelector('.listen-button')) {
+          const text = content.dataset.content || content.textContent || '';
+          if (text) {
+            appendListenButton(message, text);
+          }
+        }
+      });
+    }
+
+    document.getElementById('chatForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const data = {
+        user_id: form.user_id.value,
+        topic: form.topic.value,
+        display_name: form.display_name.value,
+        knowledge_level: form.knowledge_level.value,
+        learning_style: form.learning_style.value,
+      };
+
+      spinner.style.display = 'inline-block';
+      sourceLabel.textContent = 'waiting...';
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.error) {
+          showToast(payload.error || 'Unable to get explanation.');
+          sourceLabel.textContent = 'error';
+          return;
+        }
+
+        sourceLabel.textContent = payload.source || 'local-fallback';
+        appendTurn('user', data.topic, 'user');
+        appendTurn('assistant', payload.explanation || '', payload.source || 'local-fallback');
+        showToast('Explanation generated.');
+      } catch (err) {
+        showToast('Network error while requesting explanation.');
+        sourceLabel.textContent = 'offline';
+        console.error(err);
+      } finally {
+        spinner.style.display = 'none';
+      }
+    });
+
+    document.getElementById('clearChat').addEventListener('click', async () => {
+      const userId = document.getElementById('userId').value;
+      const formData = new FormData();
+      formData.append('user_id', userId);
+      try {
+        await fetch('/chat/clear', { method: 'POST', body: formData });
+        window.location.reload();
+      } catch (err) {
+        showToast('Could not clear chat.');
+      }
+    });
+
+    voiceButton.addEventListener('click', startVoiceInput);
+    listenLatestButton.addEventListener('click', () => {
+      const lastAssistant = Array.from(document.querySelectorAll('#chatBody .message.assistant')).pop();
+      if (!lastAssistant) {
+        showToast('No assistant response to read yet.');
+        return;
+      }
+      const content = lastAssistant.querySelector('.rendered-message');
+      const text = content ? content.dataset.content || content.textContent || '' : '';
+      if (text) {
+        speakText(text);
+      } else {
+        showToast('No text available to read.');
+      }
+    });
+
+    document.querySelectorAll('.rendered-message').forEach((element) => {
+      const content = element.dataset.content || element.textContent || '';
+      renderMarkdown(element, content);
+    });
+    addGlobalListenHandlers();
+  </script>
 </body>
 </html>
