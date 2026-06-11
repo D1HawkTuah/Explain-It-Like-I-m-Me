@@ -59,3 +59,18 @@ class Feedback:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+@dataclass
+class MasteryRecord:
+    user_id: str
+    topic: str
+    mastery_score: int = 0
+    review_count: int = 0
+    ease_factor: float = 2.5
+    interval_days: int = 1
+    last_reviewed: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    next_review_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)

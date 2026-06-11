@@ -14,27 +14,34 @@ def generate_explanation(
     engine: EILIMEngine,
     llm: Optional[object] = None,
     semantic_context: Optional[dict[str, object]] = None,
+    variant: bool = False,
 ) -> Tuple[str, str, str]:
     domain = engine.infer_domain(topic)
 
     if llm is not None and getattr(llm, "enabled", False):
         try:
-            try:
-                explanation = llm.explain(
-                    topic=topic,
-                    profile=profile,
-                    recent_topics=recent_topics,
-                    domain_hint=domain,
-                    semantic_context=semantic_context,
-                )
-            except TypeError as e:
-                logger.debug("LLM explain() signature mismatch, retrying without semantic_context", exc_info=True)
-                explanation = llm.explain(
-                    topic=topic,
-                    profile=profile,
-                    recent_topics=recent_topics,
-                    domain_hint=domain,
-                )
+            explain_kwargs = {
+                "topic": topic,
+                "profile": profile,
+                "recent_topics": recent_topics,
+                "domain_hint": domain,
+            }
+            if semantic_context is not None:
+                explain_kwargs["semantic_context"] = semantic_context
+            explanation = llm.explain(**explain_kwargs)
+            if explanation and explanation.strip():
+                logger.info(f"LLM explanation generated for topic: {topic[:50]}")
+                return explanation, domain, "llm"
+            else:
+                logger.warning("LLM returned empty or whitespace-only explanation")
+        except TypeError as e:
+            logger.debug("LLM explain() signature mismatch, retrying without semantic_context", exc_info=True)
+            explanation = llm.explain(
+                topic=topic,
+                profile=profile,
+                recent_topics=recent_topics,
+                domain_hint=domain,
+            )
             if explanation and explanation.strip():
                 logger.info(f"LLM explanation generated for topic: {topic[:50]}")
                 return explanation, domain, "llm"
@@ -51,5 +58,6 @@ def generate_explanation(
         profile=profile,
         recent_topics=recent_topics,
         semantic_context=semantic_context,
+        variant=variant,
     )
     return local_explanation, domain, "local"

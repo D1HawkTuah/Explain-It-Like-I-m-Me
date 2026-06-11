@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from eilim.storage import JSONStorage
-from eilim.models import Feedback, Interaction, UserProfile
+from eilim.models import Feedback, Interaction, MasteryRecord, UserProfile
 
 
 def test_load_profile_handles_missing_file():
@@ -161,3 +161,28 @@ def test_profile_round_trip():
         assert loaded.display_name == original.display_name
         assert loaded.knowledge_level == original.knowledge_level
         assert loaded.interests == original.interests
+
+
+def test_mastery_record_updates_and_persists():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JSONStorage(root=tmpdir)
+        record = storage.update_mastery_for_feedback(user_id="u1", topic="algebra", rating=4)
+
+        assert record.user_id == "u1"
+        assert record.topic == "algebra"
+        assert record.review_count == 1
+        assert record.mastery_score == 80
+        assert record.interval_days >= 1
+        assert record.next_review_at != record.last_reviewed
+
+        loaded = storage.load_mastery_record(user_id="u1", topic="algebra")
+        assert loaded is not None
+        assert loaded.review_count == 1
+        assert loaded.mastery_score == 80
+
+        updated = storage.update_mastery_for_feedback(user_id="u1", topic="algebra", rating=5)
+        assert updated.review_count == 2
+        assert updated.mastery_score >= 80
+        overview = storage.mastery_overview(user_id="u1")
+        assert overview["tracked_topics"] == 1
+        assert overview["due_count"] >= 0

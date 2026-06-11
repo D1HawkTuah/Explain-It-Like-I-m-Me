@@ -1,11 +1,11 @@
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .models import Feedback, Interaction, UserProfile
+from .models import Feedback, Interaction, MasteryRecord, UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,150 @@ class JSONStorage:
         except Exception as e:
             logger.error(f"Failed to save feedback: {str(e)[:80]}")
             raise
+
+    def save_mastery_record(self, record: MasteryRecord) -> None:
+        with self._sqlite_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO mastery_records
+                    (user_id, topic, mastery_score, review_count, ease_factor, interval_days, last_reviewed, next_review_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, topic) DO UPDATE SET
+                    mastery_score = excluded.mastery_score,
+                    review_count = excluded.review_count,
+                    ease_factor = excluded.ease_factor,
+                    interval_days = excluded.interval_days,
+                    last_reviewed = excluded.last_reviewed,
+                    next_review_at = excluded.next_review_at
+                """,
+                (
+                    record.user_id,
+                    record.topic,
+                    record.mastery_score,
+                    record.review_count,
+                    record.ease_factor,
+                    record.interval_days,
+                    record.last_reviewed,
+                    record.next_review_at,
+                ),
+            )
+
+    def load_mastery_record(self, user_id: str, topic: str) -> Optional[MasteryRecord]:
+        with self._sqlite_connection() as conn:
+            row = conn.execute(
+                "SELECT user_id, topic, mastery_score, review_count, ease_factor, interval_days, last_reviewed, next_review_at FROM mastery_records WHERE user_id = ? AND topic = ?",
+                (user_id, topic),
+            ).fetchone()
+
+        if not row:
+            return None
+
+        return MasteryRecord(
+            user_id=row["user_id"],
+            topic=row["topic"],
+            mastery_score=int(row["mastery_score"]),
+            review_count=int(row["review_count"]),
+            ease_factor=float(row["ease_factor"]),
+            interval_days=int(row["interval_days"]),
+            last_reviewed=row["last_reviewed"],
+            next_review_at=row["next_review_at"],
+        )
+
+    def load_mastery_records(self, user_id: str, limit: int = 50) -> List[MasteryRecord]:
+        with self._sqlite_connection() as conn:
+            rows = conn.execute(
+                "SELECT user_id, topic, mastery_score, review_count, ease_factor, interval_days, last_reviewed, next_review_at FROM mastery_records WHERE user_id = ? ORDER BY next_review_at ASC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+
+        return [
+            MasteryRecord(
+                user_id=row["user_id"],
+                topic=row["topic"],
+                mastery_score=int(row["mastery_score"]),
+                review_count=int(row["review_count"]),
+                ease_factor=float(row["ease_factor"]),
+                interval_days=int(row["interval_days"]),
+                last_reviewed=row["last_reviewed"],
+                next_review_at=row["next_review_at"],
+            )
+            for row in rows
+        ]
+
+    def due_mastery_topics(self, user_id: str, limit: int = 10) -> List[MasteryRecord]:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with self._sqlite_connection() as conn:
+            rows = conn.execute(
+                "SELECT user_id, topic, mastery_score, review_count, ease_factor, interval_days, last_reviewed, next_review_at FROM mastery_records WHERE user_id = ? AND next_review_at <= ? ORDER BY next_review_at ASC LIMIT ?",
+                (user_id, now_iso, limit),
+            ).fetchall()
+
+        return [
+            MasteryRecord(
+                user_id=row["user_id"],
+                topic=row["topic"],
+                mastery_score=int(row["mastery_score"]),
+                review_count=int(row["review_count"]),
+                ease_factor=float(row["ease_factor"]),
+                interval_days=int(row["interval_days"]),
+                last_reviewed=row["last_reviewed"],
+                next_review_at=row["next_review_at"],
+            )
+            for row in rows
+        ]
+
+    def update_mastery_for_feedback(self, user_id: str, topic: str, rating: int) -> MasteryRecord:
+        record = self.load_mastery_record(user_id, topic)
+        if record is None:
+            record = MasteryRecord(user_id=user_id, topic=topic)
+
+        updated = self._apply_mastery_feedback(record, rating)
+        self.save_mastery_record(updated)
+        return updated
+
+    def mastery_overview(self, user_id: str, limit: int = 5) -> Dict[str, object]:
+        records = self.load_mastery_records(user_id, limit=limit)
+        now = datetime.now(timezone.utc)
+        due = [r for r in records if r.next_review_at <= now.isoformat()]
+        next_review_days = None
+        if records:
+            soonest = min(records, key=lambda item: item.next_review_at)
+            next_due = datetime.fromisoformat(soonest.next_review_at)
+            next_review_days = max(0, (next_due - now).days)
+
+        return {
+            "tracked_topics": len(records),
+            "due_count": len(due),
+            "due_topics": [r.topic for r in due[:limit]],
+            "next_due_days": next_review_days,
+        }
+
+    @staticmethod
+    def _apply_mastery_feedback(record: MasteryRecord, rating: int) -> MasteryRecord:
+        quality = max(0, min(5, rating))
+        prior_reviews = record.review_count
+        scored_quality = quality * 20
+        total_score = record.mastery_score * prior_reviews + scored_quality
+        record.review_count = prior_reviews + 1
+        record.mastery_score = int(total_score / record.review_count)
+
+        if quality < 3:
+            record.interval_days = 1
+            record.ease_factor = max(1.3, record.ease_factor - 0.2)
+        elif prior_reviews == 0:
+            record.interval_days = 1
+        elif prior_reviews == 1:
+            record.interval_days = 6
+        else:
+            record.interval_days = max(1, round(record.interval_days * record.ease_factor))
+
+        ease_delta = 0.1 - (5 - quality) * 0.08
+        record.ease_factor = max(1.3, record.ease_factor + ease_delta)
+
+        now = datetime.now(timezone.utc)
+        record.last_reviewed = now.isoformat()
+        record.next_review_at = (now + timedelta(days=record.interval_days)).isoformat()
+        return record
 
     def save_conversation_turn(
         self,
@@ -144,6 +288,25 @@ class JSONStorage:
             )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_conversations_user_id_turn_index ON conversations (user_id, turn_index)"
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS mastery_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    mastery_score INTEGER NOT NULL DEFAULT 0,
+                    review_count INTEGER NOT NULL DEFAULT 0,
+                    ease_factor REAL NOT NULL DEFAULT 2.5,
+                    interval_days INTEGER NOT NULL DEFAULT 1,
+                    last_reviewed TEXT NOT NULL,
+                    next_review_at TEXT NOT NULL,
+                    UNIQUE(user_id, topic)
+                )
+                """
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_mastery_user_next_review ON mastery_records (user_id, next_review_at)"
             )
 
     def recent_feedback(self, user_id: str, limit: int = 5) -> List[Feedback]:

@@ -10,6 +10,7 @@ class EILIMEngine:
         profile: UserProfile,
         recent_topics: List[str],
         semantic_context: dict[str, object] | None = None,
+        variant: bool = False,
     ) -> str:
         domain = self.infer_domain(topic)
         topic_label = self._topic_label(topic)
@@ -17,6 +18,10 @@ class EILIMEngine:
         quick_take = self._quick_take(topic_label, profile.knowledge_level, domain)
         topic_specific = self._topic_specific_explanation(topic, profile.knowledge_level)
         depth = topic_specific or self._domain_explanation(topic_label, profile.knowledge_level, domain)
+        if variant:
+            topic_label = topic_label + " differently"
+            depth = self._alternate_explanation(topic, profile.knowledge_level, domain)
+            quick_take = self._alternate_quick_take(topic_label, profile.knowledge_level, domain)
         style_block = self._style_block(profile.learning_style, topic)
         continuity = self._continuity_line(recent_topics)
         memory_line = self._memory_line(semantic_context)
@@ -46,6 +51,78 @@ class EILIMEngine:
 
     def infer_domain(self, topic: str) -> str:
         return self._infer_domain(topic)
+
+    def generate_quiz(
+        self,
+        topic: str,
+        profile: UserProfile,
+        recent_topics: List[str],
+        semantic_context: dict[str, object] | None = None,
+        count: int = 3,
+    ) -> List[dict[str, str]]:
+        topic_label = self._topic_label(topic)
+        count = max(1, min(5, count))
+        questions = [
+            {
+                "question": f"What is the core idea of {topic_label}?",
+                "answer": self._quiz_answer_definition(topic_label, profile.knowledge_level),
+            },
+            {
+                "question": f"Give one example of how {topic_label} matters in real life.",
+                "answer": self._quiz_answer_example(topic_label, profile.knowledge_level),
+            },
+            {
+                "question": f"How would you check your understanding of {topic_label}?",
+                "answer": self._quiz_answer_check(topic_label, profile.knowledge_level),
+            },
+        ]
+        return questions[:count]
+
+    @staticmethod
+    def _quiz_answer_definition(topic_label: str, level: str) -> str:
+        if level == "advanced":
+            return (
+                f"{topic_label.title()} is best understood by naming the model, the main assumptions, "
+                "and the conditions where it applies."
+            )
+        if level == "intermediate":
+            return (
+                f"{topic_label.title()} means understanding what it does, how it works, and why it matters."
+            )
+        return (
+            f"{topic_label.title()} is the basic idea behind how something works or why it happens. "
+            "Keep the definition simple and clear."
+        )
+
+    @staticmethod
+    def _quiz_answer_example(topic_label: str, level: str) -> str:
+        if level == "advanced":
+            return (
+                f"Describe a case where {topic_label} changes the result if you alter one assumption, "
+                "and what that tells you about the idea."
+            )
+        if level == "intermediate":
+            return (
+                f"Give an example of {topic_label} in everyday life or school, then explain why it fits."
+            )
+        return (
+            f"Name a simple situation where {topic_label} appears, whether in a story, a problem, or a routine."
+        )
+
+    @staticmethod
+    def _quiz_answer_check(topic_label: str, level: str) -> str:
+        if level == "advanced":
+            return (
+                f"Test yourself by explaining {topic_label} in three layers: the statement, the key mechanism, "
+                "and one limitation or exception."
+            )
+        if level == "intermediate":
+            return (
+                f"Check your understanding by teaching {topic_label} to someone else using one clear example."
+            )
+        return (
+            f"Check your understanding by telling a friend what {topic_label} means and what happens first."
+        )
 
     @staticmethod
     def _infer_domain(topic: str) -> str:
@@ -80,6 +157,35 @@ class EILIMEngine:
             )
         return (
             f"{topic_label.title()} means understanding what it is, how it works, and where you see it in real life."
+        )
+
+    def _alternate_quick_take(self, topic_label: str, level: str, domain: str) -> str:
+        if level == "advanced":
+            return (
+                f"A different lens on {topic_label.title()} is to compare its structure with similar concepts, "
+                "then highlight what makes it unique."
+            )
+        if level == "intermediate":
+            return (
+                f"Try another view: first outline the main idea of {topic_label.title()}, then show one concrete example."
+            )
+        return (
+            f"Another simple way to think of {topic_label.title()} is to describe what happens step by step."
+        )
+
+    def _alternate_explanation(self, topic: str, level: str, domain: str) -> str:
+        topic_label = self._topic_label(topic)
+        if level == "advanced":
+            return (
+                f"Look at {topic_label} through the conditions that change it and the rules that keep it stable. "
+                "This alternative explanation helps you see both the mechanism and its boundaries."
+            )
+        if level == "intermediate":
+            return (
+                f"Explain {topic_label} by describing what it does, then why it matters, and finally one example of it in action."
+            )
+        return (
+            f"Describe {topic_label} with a short story or simple analogy so it feels familiar and easy to recall."
         )
 
     @staticmethod

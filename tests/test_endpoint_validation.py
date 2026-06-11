@@ -7,6 +7,7 @@ import pytest
 pytest.importorskip("flask")
 
 import app as web_app
+from eilim.storage import JSONStorage
 
 
 @pytest.fixture
@@ -196,3 +197,116 @@ def test_request_with_xss_attempt(client):
     
     # Should handle safely, template should escape
     assert response.status_code in (200, 302)
+
+
+def test_explain_endpoint_returns_mastery_summary_in_json(client):
+    response = client.post(
+        "/explain",
+        json={
+            "user_id": "mastery_user",
+            "topic": "spaced repetition",
+            "knowledge_level": "beginner",
+            "learning_style": "step-by-step",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, dict)
+    assert "mastery_summary" in data
+    assert "tracked_topics" in data["mastery_summary"]
+
+
+def test_explain_endpoint_returns_variant_explanation(client):
+    response = client.post(
+        "/explain",
+        json={
+            "user_id": "variant_user",
+            "topic": "entropy",
+            "knowledge_level": "beginner",
+            "learning_style": "visual",
+            "variant": True,
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, dict)
+    assert "explanation" in data and data["explanation"]
+    assert data["topic"] == "entropy"
+    assert "mastery_summary" in data
+
+
+def test_quiz_endpoint_returns_quiz_payload(client):
+    response = client.post(
+        "/quiz",
+        json={
+            "user_id": "quiz_user",
+            "topic": "friction",
+            "knowledge_level": "intermediate",
+            "learning_style": "story",
+            "count": 3,
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, dict)
+    assert data["topic"] == "friction"
+    assert data["user_id"] == "quiz_user"
+    assert isinstance(data["quiz"], list)
+    assert len(data["quiz"]) == 3
+    assert all("question" in item and "answer" in item for item in data["quiz"])
+    assert "mastery_summary" in data
+
+
+def test_quiz_endpoint_validates_topic(client):
+    response = client.post(
+        "/quiz",
+        json={
+            "user_id": "quiz_user",
+            "topic": "",
+            "count": 2,
+        },
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data and "error" in data
+
+
+def test_export_summary_markdown(client):
+    response = client.get("/export/summary?user_id=export_user&format=markdown")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/markdown")
+    body = response.data.decode("utf-8")
+    assert "# Learning Summary" in body
+    assert "User ID: export_user" in body
+
+
+def test_export_summary_pdf(client):
+    response = client.get("/export/summary?user_id=export_user&format=pdf")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/pdf"
+    assert response.data[:4] == b"%PDF"
+
+
+def test_feedback_endpoint_updates_mastery_record(client, monkeypatch, tmp_path):
+    temp_storage = JSONStorage(root=str(tmp_path))
+    monkeypatch.setattr(web_app, "storage", temp_storage)
+
+    response = client.post(
+        "/feedback",
+        data={
+            "user_id": "mastery_user",
+            "topic": "calculus",
+            "rating": "5",
+            "comment": "Very helpful",
+        },
+    )
+
+    assert response.status_code in (200, 302)
+    record = temp_storage.load_mastery_record("mastery_user", "calculus")
+    assert record is not None
+    assert record.review_count == 1
+    assert record.mastery_score == 100

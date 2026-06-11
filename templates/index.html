@@ -99,6 +99,11 @@
         </div>
         <form id="chatForm" class="chat-footer" method="post" action="/explain">
           <input type="hidden" name="user_id" id="userId" value="{{ user_id or 'guest' }}" />
+          <input type="hidden" name="self_explainer_sample" id="selfExplainerSample" value="{{ profile.self_explainer_sample if profile else '' }}" />
+          <input type="hidden" name="interests" id="interestsField" value="{{ profile.interests | join(',') if profile else '' }}" />
+          <input type="hidden" name="domains_of_focus" id="domainsField" value="{{ profile.domains_of_focus | join(',') if profile else '' }}" />
+          <input type="hidden" name="onboarding_survey" id="onboardingSurvey" value="{{ profile.onboarding_survey if profile else '' }}" />
+          <input type="hidden" name="calibration_quiz_score" id="calibrationQuizScore" value="{{ profile.calibration_quiz_score if profile and profile.calibration_quiz_score >= 0 else '' }}" />
           <div style="display:grid; gap:12px; grid-template-columns:1fr 1fr;">
             <div>
               <label for="topicInput">Ask about</label>
@@ -128,8 +133,17 @@
               </select>
             </div>
           </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <button type="button" id="voiceInputButton" style="background:#fff;color:var(--text);border:1px solid var(--border);">🎙️ Speak</button>
+          <div style="display:grid; gap:10px; grid-template-columns:1fr 1fr; align-items:center;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <button type="button" id="voiceInputButton" style="background:#fff;color:var(--text);border:1px solid var(--border);">🎙️ Speak</button>
+              <button type="button" id="variantButton" style="background:#fff;color:var(--text);border:1px solid var(--border);">🔁 Explain differently</button>
+              <button type="button" id="quizButton" style="background:#fff;color:var(--text);border:1px solid var(--border);">📘 Quiz me</button>
+              <label for="quizCount" style="margin:0 6px 0 0;">Count</label>
+              <select id="quizCount" name="count" style="min-width:80px;">
+                <option value="3">3</option>
+                <option value="5">5</option>
+              </select>
+            </div>
             <button type="submit">Send</button>
           </div>
         </form>
@@ -147,6 +161,65 @@
           {% endif %}
         </div>
 
+        {% if show_profile_wizard %}
+        <div class="section" id="onboardingWizard">
+          <h3>Get started</h3>
+          <p class="summary">Complete a quick setup so EILIM can tailor explanations to you.</p>
+          <div id="wizardStep" style="display:grid; gap:12px;">
+            <div id="wizardStep1">
+              <label for="wizardName">Your name</label>
+              <input id="wizardName" placeholder="How should I call you?" />
+              <label for="wizardSelfExplainer">How do you usually explain things to yourself?</label>
+              <textarea id="wizardSelfExplainer" placeholder="I draw pictures, use stories, or write out code-like steps..."></textarea>
+              <button type="button" id="wizardNext1">Next</button>
+            </div>
+            <div id="wizardStep2" style="display:none;">
+              <p class="help-note">Based on what you wrote, we suggest:</p>
+              <p id="wizardSuggestion"></p>
+              <label for="wizardSuggestedStyle">Learning style</label>
+              <select id="wizardSuggestedStyle">
+                <option value="step-by-step">Step-by-step</option>
+                <option value="visual">Visual</option>
+                <option value="story">Story</option>
+                <option value="code">Code</option>
+              </select>
+              <label for="wizardSuggestedLevel">Knowledge level</label>
+              <select id="wizardSuggestedLevel">
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+              <button type="button" id="wizardBack2">Back</button>
+              <button type="button" id="wizardNext2">Next</button>
+            </div>
+            <div id="wizardStep3" style="display:none;">
+              <label for="wizardInterests">What are your interests? (comma separated)</label>
+              <input id="wizardInterests" placeholder="e.g. music, cooking, coding" />
+              <label for="wizardDomains">What domains do you care about?</label>
+              <input id="wizardDomains" placeholder="e.g. math, history, finance" />
+              <button type="button" id="wizardBack3">Back</button>
+              <button type="button" id="wizardComplete">Finish setup</button>
+            </div>
+            <div id="wizardCompleteMessage" style="display:none;">
+              <p class="summary">Great! Your profile is ready. Use the chat to ask a question and EILIM will remember your preferences.</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="section" id="masterySection">
+          <h3>Mastery tracker</h3>
+          <p class="summary">You are tracking <strong>{{ mastery_summary.tracked_topics }}</strong> topic{{ "s" if mastery_summary.tracked_topics != 1 else "" }}.</p>
+          {% if mastery_summary.due_count > 0 %}
+            <p class="help-note">Review due for <strong>{{ mastery_summary.due_count }}</strong> topic{{ "s" if mastery_summary.due_count != 1 else "" }}.</p>
+            <p class="help-note">Due topics: {{ mastery_summary.due_topics | join(", ") }}</p>
+          {% elif mastery_summary.tracked_topics > 0 %}
+            <p class="help-note">No reviews due yet. Next review in <strong>{{ mastery_summary.next_due_days }}</strong> day{{ "s" if mastery_summary.next_due_days != 1 else "" }}.</p>
+          {% else %}
+            <p class="help-note">Mastery tracking begins after you rate an explanation.</p>
+          {% endif %}
+        </div>
+
         <div class="section">
           <h3>Recent memory</h3>
           <p class="summary">{{ semantic_summary or "Your recent learning goals will appear here as you chat." }}</p>
@@ -156,6 +229,8 @@
           <h3>Actions</h3>
           <button id="clearChat" type="button" style="width:100%; background:#fff; color:var(--text); border:1px solid var(--border);">Clear conversation</button>
           <button id="listenLatest" type="button" style="width:100%; margin-top:12px; background:#fff; color:var(--text); border:1px solid var(--border);">🔊 Listen to latest answer</button>
+          <button id="exportMarkdown" type="button" style="width:100%; margin-top:12px; background:#fff; color:var(--text); border:1px solid var(--border);">📄 Export summary</button>
+          <button id="exportPDF" type="button" style="width:100%; margin-top:12px; background:#fff; color:var(--text); border:1px solid var(--border);">📕 Export PDF</button>
           <p class="help-note">Your saved chats are stored per user and reused across sessions when you use the same user ID.</p>
         </div>
       </aside>
@@ -269,6 +344,133 @@
       chatBody.scrollTop = chatBody.scrollHeight;
     }
 
+    async function requestQuiz() {
+      const topic = document.getElementById('topicInput').value.trim();
+      const userId = document.getElementById('userId').value;
+      if (!topic) {
+        showToast('Enter a topic first to generate a quiz.');
+        return;
+      }
+      const hiddenData = {
+        self_explainer_sample: document.getElementById('selfExplainerSample')?.value || '',
+        interests: document.getElementById('interestsField')?.value || '',
+        domains_of_focus: document.getElementById('domainsField')?.value || '',
+        onboarding_survey: document.getElementById('onboardingSurvey')?.value || '',
+        calibration_quiz_score: document.getElementById('calibrationQuizScore')?.value || '',
+      };
+      const data = {
+        user_id: userId,
+        topic,
+        display_name: document.getElementById('userName').value,
+        knowledge_level: document.getElementById('knowledgeLevel').value,
+        learning_style: document.getElementById('learningStyle').value,
+        count: document.getElementById('quizCount')?.value || '3',
+        ...hiddenData,
+      };
+
+      spinner.style.display = 'inline-block';
+      sourceLabel.textContent = 'waiting...';
+      try {
+        const response = await fetch('/quiz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.error) {
+          showToast(payload.error || 'Unable to generate quiz.');
+          sourceLabel.textContent = 'error';
+          return;
+        }
+
+        sourceLabel.textContent = 'quiz';
+        appendTurn('user', `Quiz request: ${topic}`, 'user');
+        payload.quiz.forEach((item, index) => {
+          appendTurn('assistant', `Q${index + 1}: ${item.question}\n\n**Answer:** ${item.answer}`, 'quiz');
+        });
+        renderMasterySummary(payload.mastery_summary || {});
+        showToast('Quiz generated.');
+      } catch (err) {
+        showToast('Network error while requesting quiz.');
+        sourceLabel.textContent = 'offline';
+        console.error(err);
+      } finally {
+        spinner.style.display = 'none';
+      }
+    }
+
+    async function requestVariantExplanation() {
+      const topic = document.getElementById('topicInput').value.trim();
+      const userId = document.getElementById('userId').value;
+      if (!topic) {
+        showToast('Enter a topic first to get an alternate explanation.');
+        return;
+      }
+      const hiddenData = {
+        self_explainer_sample: document.getElementById('selfExplainerSample')?.value || '',
+        interests: document.getElementById('interestsField')?.value || '',
+        domains_of_focus: document.getElementById('domainsField')?.value || '',
+        onboarding_survey: document.getElementById('onboardingSurvey')?.value || '',
+        calibration_quiz_score: document.getElementById('calibrationQuizScore')?.value || '',
+      };
+      const data = {
+        user_id: userId,
+        topic,
+        display_name: document.getElementById('userName').value,
+        knowledge_level: document.getElementById('knowledgeLevel').value,
+        learning_style: document.getElementById('learningStyle').value,
+        variant: true,
+        count: document.getElementById('quizCount')?.value || '3',
+        ...hiddenData,
+      };
+
+      spinner.style.display = 'inline-block';
+      sourceLabel.textContent = 'waiting...';
+      try {
+        const response = await fetch('/explain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.error) {
+          showToast(payload.error || 'Unable to get alternate explanation.');
+          sourceLabel.textContent = 'error';
+          return;
+        }
+
+        sourceLabel.textContent = payload.source || 'local-fallback';
+        appendTurn('user', `${topic} (alternate)`, 'user');
+        appendTurn('assistant', payload.explanation || '', payload.source || 'local-fallback');
+        renderMasterySummary(payload.mastery_summary || {});
+        showToast('Alternate explanation generated.');
+      } catch (err) {
+        showToast('Network error while requesting alternate explanation.');
+        sourceLabel.textContent = 'offline';
+        console.error(err);
+      } finally {
+        spinner.style.display = 'none';
+      }
+    }
+
+    function renderMasterySummary(summary) {
+      const masterySection = document.getElementById('masterySection');
+      if (!masterySection || !summary) {
+        return;
+      }
+      masterySection.innerHTML = `
+        <h3>Mastery tracker</h3>
+        <p class="summary">You are tracking <strong>${summary.tracked_topics}</strong> topic${summary.tracked_topics !== 1 ? 's' : ''}.</p>
+        ${summary.due_count > 0 ? `<p class="help-note">Review due for <strong>${summary.due_count}</strong> topic${summary.due_count !== 1 ? 's' : ''}.</p><p class="help-note">Due topics: ${summary.due_topics.join(', ')}</p>` : summary.tracked_topics > 0 ? `<p class="help-note">No reviews due yet. Next review in <strong>${summary.next_due_days}</strong> day${summary.next_due_days !== 1 ? 's' : ''}.</p>` : '<p class="help-note">Mastery tracking begins after you rate an explanation.</p>'}
+      `;
+    }
+
+    function requestExport(format) {
+      const userId = document.getElementById('userId').value;
+      const url = `/export/summary?user_id=${encodeURIComponent(userId)}&format=${encodeURIComponent(format)}`;
+      window.location.href = url;
+    }
+
     function startVoiceInput() {
       if (!canUseVoice()) {
         showToast('Voice input is not supported in this browser.');
@@ -338,12 +540,21 @@
     document.getElementById('chatForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
+      const hiddenData = {
+        self_explainer_sample: document.getElementById('selfExplainerSample')?.value || '',
+        interests: document.getElementById('interestsField')?.value || '',
+        domains_of_focus: document.getElementById('domainsField')?.value || '',
+        onboarding_survey: document.getElementById('onboardingSurvey')?.value || '',
+        calibration_quiz_score: document.getElementById('calibrationQuizScore')?.value || '',
+      };
       const data = {
         user_id: form.user_id.value,
         topic: form.topic.value,
         display_name: form.display_name.value,
         knowledge_level: form.knowledge_level.value,
         learning_style: form.learning_style.value,
+        count: document.getElementById('quizCount')?.value || '3',
+        ...hiddenData,
       };
 
       spinner.style.display = 'inline-block';
@@ -364,6 +575,7 @@
         sourceLabel.textContent = payload.source || 'local-fallback';
         appendTurn('user', data.topic, 'user');
         appendTurn('assistant', payload.explanation || '', payload.source || 'local-fallback');
+        renderMasterySummary(payload.mastery_summary || {});
         showToast('Explanation generated.');
       } catch (err) {
         showToast('Network error while requesting explanation.');
@@ -373,6 +585,25 @@
         spinner.style.display = 'none';
       }
     });
+
+    const quizButton = document.getElementById('quizButton');
+    if (quizButton) {
+      quizButton.addEventListener('click', requestQuiz);
+    }
+
+    const variantButton = document.getElementById('variantButton');
+    if (variantButton) {
+      variantButton.addEventListener('click', requestVariantExplanation);
+    }
+
+    const exportMarkdownButton = document.getElementById('exportMarkdown');
+    const exportPDFButton = document.getElementById('exportPDF');
+    if (exportMarkdownButton) {
+      exportMarkdownButton.addEventListener('click', () => requestExport('markdown'));
+    }
+    if (exportPDFButton) {
+      exportPDFButton.addEventListener('click', () => requestExport('pdf'));
+    }
 
     document.getElementById('clearChat').addEventListener('click', async () => {
       const userId = document.getElementById('userId').value;
@@ -385,6 +616,120 @@
         showToast('Could not clear chat.');
       }
     });
+
+    document.querySelectorAll('.rendered-message').forEach((element) => {
+      const content = element.dataset.content || element.textContent || '';
+      renderMarkdown(element, content);
+    });
+    addGlobalListenHandlers();
+
+    const wizardRoot = document.getElementById('onboardingWizard');
+    if (wizardRoot) {
+      const wizardName = document.getElementById('wizardName');
+      const wizardSelfExplainer = document.getElementById('wizardSelfExplainer');
+      const wizardSuggestion = document.getElementById('wizardSuggestion');
+      const wizardSuggestedStyle = document.getElementById('wizardSuggestedStyle');
+      const wizardSuggestedLevel = document.getElementById('wizardSuggestedLevel');
+      const wizardInterests = document.getElementById('wizardInterests');
+      const wizardDomains = document.getElementById('wizardDomains');
+      const wizardStep1 = document.getElementById('wizardStep1');
+      const wizardStep2 = document.getElementById('wizardStep2');
+      const wizardStep3 = document.getElementById('wizardStep3');
+      const wizardCompleteMessage = document.getElementById('wizardCompleteMessage');
+      const wizardNext1 = document.getElementById('wizardNext1');
+      const wizardBack2 = document.getElementById('wizardBack2');
+      const wizardNext2 = document.getElementById('wizardNext2');
+      const wizardBack3 = document.getElementById('wizardBack3');
+      const wizardComplete = document.getElementById('wizardComplete');
+      const hiddenStyle = document.getElementById('learningStyle');
+      const hiddenLevel = document.getElementById('knowledgeLevel');
+      const hiddenSelfExplainer = document.getElementById('selfExplainerSample');
+      const hiddenInterests = document.getElementById('interestsField');
+      const hiddenDomains = document.getElementById('domainsField');
+      const hiddenSurvey = document.getElementById('onboardingSurvey');
+      const hiddenQuizScore = document.getElementById('calibrationQuizScore');
+
+      function inferLearningStyle(text) {
+        const normalized = (text || '').toLowerCase();
+        if (["visual", "diagram", "picture", "map", "chart", "graph"].some((word) => normalized.includes(word))) {
+          return 'visual';
+        }
+        if (["story", "narrative", "imagine", "scene", "character", "tale"].some((word) => normalized.includes(word))) {
+          return 'story';
+        }
+        if (["code", "example", "program", "script", "algorithm", "function"].some((word) => normalized.includes(word))) {
+          return 'code';
+        }
+        return 'step-by-step';
+      }
+
+      function inferKnowledgeLevel(text) {
+        const normalized = (text || '').toLowerCase();
+        if (["advanced", "deep", "detailed", "in-depth", "complex"].some((word) => normalized.includes(word))) {
+          return 'advanced';
+        }
+        if (["intermediate", "more than basics", "some experience", "familiar"].some((word) => normalized.includes(word))) {
+          return 'intermediate';
+        }
+        return 'beginner';
+      }
+
+      function syncHiddenProfile() {
+        hiddenStyle.value = wizardSuggestedStyle.value;
+        hiddenLevel.value = wizardSuggestedLevel.value;
+        hiddenSelfExplainer.value = wizardSelfExplainer.value.trim();
+        hiddenInterests.value = wizardInterests.value.trim();
+        hiddenDomains.value = wizardDomains.value.trim();
+        hiddenSurvey.value = 'examples-first';
+        hiddenQuizScore.value = '';
+      }
+
+      wizardNext1.addEventListener('click', () => {
+        const text = wizardSelfExplainer.value.trim();
+        if (!wizardName.value.trim() || !text) {
+          showToast('Please enter your name and how you explain things to yourself.');
+          return;
+        }
+        const suggestedStyle = inferLearningStyle(text);
+        const suggestedLevel = inferKnowledgeLevel(text);
+        wizardSuggestion.textContent = `Suggested style: ${suggestedStyle}, suggested depth: ${suggestedLevel}.`;
+        wizardSuggestedStyle.value = suggestedStyle;
+        wizardSuggestedLevel.value = suggestedLevel;
+        wizardStep1.style.display = 'none';
+        wizardStep2.style.display = 'block';
+      });
+
+      wizardBack2.addEventListener('click', () => {
+        wizardStep2.style.display = 'none';
+        wizardStep1.style.display = 'block';
+      });
+
+      wizardNext2.addEventListener('click', () => {
+        wizardStep2.style.display = 'none';
+        wizardStep3.style.display = 'block';
+      });
+
+      wizardBack3.addEventListener('click', () => {
+        wizardStep3.style.display = 'none';
+        wizardStep2.style.display = 'block';
+      });
+
+      wizardComplete.addEventListener('click', () => {
+        if (!wizardInterests.value.trim() || !wizardDomains.value.trim()) {
+          showToast('Add at least one interest and one domain so EILIM can personalize better.');
+          return;
+        }
+        syncHiddenProfile();
+        document.getElementById('userName').value = wizardName.value.trim();
+        document.getElementById('learningStyle').value = wizardSuggestedStyle.value;
+        document.getElementById('knowledgeLevel').value = wizardSuggestedLevel.value;
+        wizardStep3.style.display = 'none';
+        wizardCompleteMessage.style.display = 'block';
+        wizardNext1.disabled = true;
+        wizardNext2.disabled = true;
+        wizardComplete.disabled = true;
+      });
+    }
 
     voiceButton.addEventListener('click', startVoiceInput);
     listenLatestButton.addEventListener('click', () => {
@@ -402,11 +747,6 @@
       }
     });
 
-    document.querySelectorAll('.rendered-message').forEach((element) => {
-      const content = element.dataset.content || element.textContent || '';
-      renderMarkdown(element, content);
-    });
-    addGlobalListenHandlers();
   </script>
 </body>
 </html>
