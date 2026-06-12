@@ -7,7 +7,7 @@ import time
 from functools import wraps
 
 import edge_tts
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for, send_file
+from flask import Flask, Response, jsonify, redirect, render_template, request, session, stream_with_context, url_for, send_file
 
 from eilim import (
     EILIMEngine,
@@ -37,6 +37,8 @@ from eilim.validation import (
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+GROUP_ROOMS: dict[str, dict[str, object]] = {}
 
 
 # ----- Fallback generator (same as CLI) -----
@@ -513,6 +515,79 @@ def index():
     )
 
 
+@app.post("/explain/stream")
+@rate_limited
+def explain_stream():
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    validate_request_payload_size(payload)
+
+    user_id = normalize_user_id(payload.get("user_id", ""))
+    topic = validate_topic(payload.get("topic", ""))
+    variant = _parse_boolean(payload.get("variant", False))
+
+    profile_existing = storage.load_profile(user_id)
+    profile = _profile_from_payload(user_id=user_id, payload=payload, existing=profile_existing)
+    storage.save_profile(profile)
+
+    def generate_stream():
+        history = _load_conversation_history(user_id)
+        semantic_context = build_semantic_context(history)
+        recent_topics = storage.recent_topics(user_id=user_id, limit=5)
+        full_text = []
+
+        try:
+            if hasattr(llm, "stream_explain") and getattr(llm, "enabled", False):
+                for chunk in llm.stream_explain(
+                    topic=topic,
+                    profile=profile,
+                    recent_topics=recent_topics,
+                    domain_hint=engine.infer_domain(topic),
+                    semantic_context=semantic_context,
+                ):
+                    if chunk:
+                        full_text.append(chunk)
+                        yield f"data: {chunk}\n\n"
+                source = "llm"
+            else:
+                explanation, _, source = generate_explanation(
+                    topic=topic,
+                    profile=profile,
+                    recent_topics=recent_topics,
+                    engine=engine,
+                    llm=llm,
+                    semantic_context=semantic_context,
+                    variant=variant,
+                )
+                full_text.append(explanation or "")
+                for chunk in explanation or "":
+                    yield f"data: {chunk}\n\n"
+
+            if full_text:
+                text = "".join(full_text)
+                storage.save_interaction(
+                    Interaction(
+                        user_id=user_id,
+                        topic=topic,
+                        explanation=text,
+                        domain=engine.infer_domain(topic),
+                    )
+                )
+                storage.save_conversation_turn(user_id=user_id, role="user", text=topic, source="")
+                storage.save_conversation_turn(user_id=user_id, role="assistant", text=text, source=source)
+                session.setdefault("chat_history", [])
+                session["chat_history"] = (session.get("chat_history", []) or []) + [
+                    {"role": "user", "text": topic},
+                    {"role": "assistant", "text": text, "source": source},
+                ]
+        except Exception as exc:
+            logger.warning("Streaming explanation failed: %s", exc)
+            fallback_text = local_fallback_explanation(topic, profile, recent_topics)
+            for chunk in fallback_text:
+                yield f"data: {chunk}\n\n"
+
+    return Response(stream_with_context(generate_stream()), mimetype="text/event-stream")
+
+
 @app.post("/explain")
 @rate_limited
 def explain_topic():
@@ -557,6 +632,116 @@ def explain_topic():
         user_id=user_id,
         conversation=conversation,
     )
+
+
+@app.post("/group/create")
+@rate_limited
+def create_group_room():
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    user_id = normalize_user_id(payload.get("user_id", "guest"))
+    room_id = f"room-{len(GROUP_ROOMS) + 1:04d}"
+    GROUP_ROOMS[room_id] = {
+        "room_id": room_id,
+        "owner": user_id,
+        "messages": [],
+    }
+    return jsonify({"room_id": room_id, "owner": user_id, "messages": []})
+
+
+@app.post("/group/<room_id>/explain")
+@rate_limited
+def group_explain(room_id: str):
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    user_id = normalize_user_id(payload.get("user_id", "guest"))
+    topic = validate_topic(payload.get("topic", ""))
+    room = GROUP_ROOMS.get(room_id)
+    if not room:
+        return jsonify({"error": "Room not found."}), 404
+
+    profile_existing = storage.load_profile(user_id)
+    profile = _profile_from_payload(user_id=user_id, payload=payload, existing=profile_existing)
+    storage.save_profile(profile)
+
+    explanation, _, source = generate_explanation(
+        topic=topic,
+        profile=profile,
+        recent_topics=storage.recent_topics(user_id=user_id, limit=5),
+        engine=engine,
+        llm=llm,
+        semantic_context=build_semantic_context(_load_conversation_history(user_id)),
+    )
+
+    room_messages = list(room.get("messages", []))
+    room_messages.append({"role": "user", "text": topic, "user_id": user_id})
+    room_messages.append({"role": "assistant", "text": explanation, "source": source, "user_id": user_id})
+    room["messages"] = room_messages
+
+    return jsonify({"room_id": room_id, "topic": topic, "explanation": explanation, "source": source, "messages": room_messages})
+
+
+def _build_curriculum_plan(goal: str) -> list[str]:
+    cleaned = (goal or "your topic").strip().lower()
+    topic = cleaned if cleaned else "your topic"
+    return [
+        f"1. Define the core idea behind {topic}.",
+        f"2. Review one simple example and one real-world use case for {topic}.",
+        f"3. Practice a short recall check on {topic} before moving on.",
+        f"4. Schedule a short review session for {topic} tomorrow.",
+    ]
+
+
+@app.post("/curriculum/plan")
+@rate_limited
+def curriculum_plan():
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    validate_request_payload_size(payload)
+
+    user_id = normalize_user_id(payload.get("user_id", "guest"))
+    goal = validate_topic(payload.get("goal", "")) or str(payload.get("goal", "")).strip()
+    if not goal:
+        return jsonify({"error": "Goal is required."}), 400
+
+    profile_existing = storage.load_profile(user_id)
+    profile = _profile_from_payload(user_id=user_id, payload=payload, existing=profile_existing)
+    storage.save_profile(profile)
+
+    return jsonify({"goal": goal, "steps": _build_curriculum_plan(goal)})
+
+
+@app.post("/local/generate")
+@rate_limited
+def local_generate():
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    validate_request_payload_size(payload)
+
+    user_id = normalize_user_id(payload.get("user_id", "guest"))
+    topic = validate_topic(payload.get("topic", ""))
+    if not topic:
+        return jsonify({"error": "Topic is required."}), 400
+
+    profile_existing = storage.load_profile(user_id)
+    profile = _profile_from_payload(user_id=user_id, payload=payload, existing=profile_existing)
+    storage.save_profile(profile)
+
+    recent_topics = storage.recent_topics(user_id=user_id, limit=5)
+    semantic_context = build_semantic_context(_load_conversation_history(user_id))
+    explanation = engine.explain(
+        topic=topic,
+        profile=profile,
+        recent_topics=recent_topics,
+        semantic_context=semantic_context,
+    )
+    domain = engine.infer_domain(topic)
+    source = "local"
+
+    return jsonify({
+        "topic": topic,
+        "user_id": user_id,
+        "explanation": explanation,
+        "source": source,
+        "domain": domain,
+        "mastery_summary": storage.mastery_overview(user_id=user_id),
+    })
 
 
 @app.post("/quiz")
