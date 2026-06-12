@@ -204,6 +204,32 @@ GitHub Actions workflow runs tests automatically on:
 - Push to `main`
 - Pull requests targeting `main`
 
+## Focused Companion Features
+
+To make EILIM feel less like a demo and more like a private, adaptive learning companion, prioritize these five improvements:
+
+1. Personal memory dashboard
+   - Let the user see what EILIM remembers, delete specific memories, and choose what stays private.
+   - This makes the system feel trustworthy instead of opaque.
+
+2. Adaptive study plans
+   - Generate daily or weekly learning goals from recent mistakes, weak topics, and user interests.
+   - The plan should evolve as mastery improves.
+
+3. Mastery + review loops
+   - Track confidence, recent errors, and revisit timing with lightweight spaced repetition.
+   - This turns explanations into a real learning cycle rather than one-off answers.
+
+4. Personalized quizzes and reflection prompts
+   - Ask short, adaptive checks after each explanation and summarize what the user understood well.
+   - Add a quick reflection prompt so the companion feels conversational, not transactional.
+
+5. Private progress summaries
+   - Give users a simple weekly recap of topics mastered, weak spots, and suggested next steps.
+   - This creates momentum and makes the experience feel like an ongoing relationship.
+
+These are the highest-impact features to build next because they combine personalization, memory, and progress tracking into a single companion experience.
+
 ## Next Iteration Ideas
 
 - Integrate live LLM generation via OpenAI API

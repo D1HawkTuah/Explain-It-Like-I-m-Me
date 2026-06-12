@@ -200,9 +200,9 @@ class JSONStorage:
         elif prior_reviews == 0:
             record.interval_days = 1
         elif prior_reviews == 1:
-            record.interval_days = 6
+            record.interval_days = 3
         else:
-            record.interval_days = max(1, round(record.interval_days * record.ease_factor))
+            record.interval_days = max(1, min(30, round(record.interval_days * record.ease_factor)))
 
         ease_delta = 0.1 - (5 - quality) * 0.08
         record.ease_factor = max(1.3, record.ease_factor + ease_delta)

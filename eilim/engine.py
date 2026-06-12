@@ -18,6 +18,7 @@ class EILIMEngine:
         quick_take = self._quick_take(topic_label, profile.knowledge_level, domain)
         topic_specific = self._topic_specific_explanation(topic, profile.knowledge_level)
         depth = topic_specific or self._domain_explanation(topic_label, profile.knowledge_level, domain)
+        personal_lens = self._profile_tailoring_line(profile, topic_label)
         if variant:
             topic_label = topic_label + " differently"
             depth = self._alternate_explanation(topic, profile.knowledge_level, domain)
@@ -25,6 +26,7 @@ class EILIMEngine:
         style_block = self._style_block(profile.learning_style, topic)
         continuity = self._continuity_line(recent_topics)
         memory_line = self._memory_line(semantic_context)
+        reflection_prompt = self._reflection_prompt(topic, profile.knowledge_level)
         self_voice_line = self._self_voice_line(profile)
 
         return "\n".join(
@@ -34,6 +36,7 @@ class EILIMEngine:
                 "",
                 "Quick take:",
                 quick_take,
+                personal_lens,
                 "",
                 "Core explanation:",
                 depth,
@@ -44,6 +47,8 @@ class EILIMEngine:
                 "",
                 "Try it yourself:",
                 self._check_yourself(topic, profile.knowledge_level),
+                "",
+                reflection_prompt,
                 "",
                 style_block,
             ]
@@ -127,6 +132,8 @@ class EILIMEngine:
     @staticmethod
     def _infer_domain(topic: str) -> str:
         text = topic.lower()
+        if any(word in text for word in ["compound interest", "interest", "savings", "loan", "budget", "credit", "invest"]):
+            return "personal-finance"
         if any(word in text for word in ["math", "algebra", "calculus", "equation"]):
             return "school-math"
         if any(word in text for word in ["physics", "gravity", "force", "orbit", "motion", "energy"]):
@@ -145,6 +152,11 @@ class EILIMEngine:
 
     @staticmethod
     def _quick_take(topic_label: str, level: str, domain: str) -> str:
+        if "compound interest" in topic_label.lower() or domain == "personal-finance":
+            return (
+                "Compound interest means your money earns interest on both the original balance and the interest already earned, "
+                "so your growth speeds up over time."
+            )
         if level == "advanced":
             return (
                 f"{topic_label.title()} in {domain} is best understood by modeling mechanism, assumptions, "
@@ -338,6 +350,22 @@ class EILIMEngine:
     def _topic_specific_explanation(topic: str, level: str) -> str:
         text = topic.lower()
 
+        if "compound interest" in text or "interest" in text and "compound" in text:
+            if level == "advanced":
+                return (
+                    "Compound interest means the balance grows by earning interest on both the original amount and the accumulated interest. "
+                    "A practical model is A = P(1 + r/n)^(nt), which shows how more frequent compounding accelerates growth."
+                )
+            if level == "intermediate":
+                return (
+                    "Compound interest is interest on interest: your earnings are added to the principal, so future interest is earned on a larger balance. "
+                    "In a savings account, that means your money grows faster over time than with simple interest."
+                )
+            return (
+                "Compound interest means you earn interest on interest: the interest you already earned is added to your balance, "
+                "so your savings grow faster over time in a savings account or investment."
+            )
+
         if "gravity" in text:
             if level == "advanced":
                 return (
@@ -361,6 +389,22 @@ class EILIMEngine:
         return ""
 
     @staticmethod
+    def _profile_tailoring_line(profile: UserProfile, topic_label: str) -> str:
+        interests = [item.strip().lower() for item in profile.interests if item and item.strip()]
+        focus = [item.strip().lower() for item in profile.domains_of_focus if item and item.strip()]
+        cues = []
+
+        if interests:
+            cues.append("use the learner's interests as a familiar frame: " + ", ".join(interests[:3]))
+        if focus:
+            cues.append("anchor the explanation in their focus areas: " + ", ".join(focus[:3]))
+
+        if not cues:
+            return ""
+
+        return "Personal lens: " + " | ".join(cues) + f" when explaining {topic_label}."
+
+    @staticmethod
     def _pick_analogy(interests: List[str], topic: str) -> str:
         if not interests:
             return f"learning {topic} is like using a map: landmarks first, details second"
@@ -376,6 +420,8 @@ class EILIMEngine:
             return "it is like cooking: master heat, timing, and ingredients before complex recipes"
         if "cars" in favorite or "mechanic" in favorite:
             return "it is like diagnosing a car: identify the subsystem, test one variable at a time"
+        if "finance" in favorite or "money" in favorite:
+            return "it is like managing a budget: small habits compound over time when you keep the basics consistent"
         return f"it is like your interest in {favorite}: start with core patterns, then layer details"
 
     @staticmethod
@@ -414,6 +460,21 @@ class EILIMEngine:
         if not hints:
             return ""
         return "Explain-like-me cues: " + " | ".join(hints)
+
+    @staticmethod
+    def _reflection_prompt(topic: str, level: str) -> str:
+        if level == "advanced":
+            return (
+                "Reflection prompt: explain what you learned about " + topic + " in your own words, "
+                "then name one place where you could apply it this week."
+            )
+        if level == "intermediate":
+            return (
+                "Reflection prompt: say what part of " + topic + " felt most clear, and what one question you still want to test."
+            )
+        return (
+            "Reflection prompt: tell yourself one simple takeaway from " + topic + " and one real-life example you can remember."
+        )
 
     @staticmethod
     def _check_yourself(topic: str, level: str) -> str:

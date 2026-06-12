@@ -679,14 +679,17 @@ def group_explain(room_id: str):
     return jsonify({"room_id": room_id, "topic": topic, "explanation": explanation, "source": source, "messages": room_messages})
 
 
-def _build_curriculum_plan(goal: str) -> list[str]:
+def _build_curriculum_plan(goal: str, profile: UserProfile | None = None) -> list[str]:
     cleaned = (goal or "your topic").strip().lower()
     topic = cleaned if cleaned else "your topic"
+    style = (profile.learning_style if profile and profile.learning_style else "step-by-step").lower()
+    level = (profile.knowledge_level if profile and profile.knowledge_level else "beginner").lower()
+    lens = f"using a {style} style for a {level} learner"
     return [
-        f"1. Define the core idea behind {topic}.",
+        f"1. Define the core idea behind {topic} {lens}.",
         f"2. Review one simple example and one real-world use case for {topic}.",
         f"3. Practice a short recall check on {topic} before moving on.",
-        f"4. Schedule a short review session for {topic} tomorrow.",
+        f"4. Schedule a short review session for {topic} tomorrow and note one question to revisit.",
     ]
 
 
@@ -705,7 +708,7 @@ def curriculum_plan():
     profile = _profile_from_payload(user_id=user_id, payload=payload, existing=profile_existing)
     storage.save_profile(profile)
 
-    return jsonify({"goal": goal, "steps": _build_curriculum_plan(goal)})
+    return jsonify({"goal": goal, "steps": _build_curriculum_plan(goal, profile)})
 
 
 @app.post("/local/generate")
@@ -824,6 +827,25 @@ def submit_feedback():
         updates = []
 
     return redirect(url_for("index"))
+
+
+@app.get("/dashboard")
+@rate_limited
+def dashboard():
+    user_id = normalize_user_id(request.args.get("user_id", "guest"))
+    profile = storage.load_profile(user_id)
+    history = _load_conversation_history(user_id)
+    semantic_context = build_semantic_context(history)
+    mastery_summary = storage.mastery_overview(user_id=user_id)
+
+    return jsonify({
+        "user_id": user_id,
+        "profile": profile.to_dict() if profile else None,
+        "mastery_summary": mastery_summary,
+        "memory_summary": (semantic_context.get("summary") or "No private memory yet.").strip(),
+        "due_topics": mastery_summary.get("due_topics", []),
+        "recent_topics": storage.recent_topics(user_id=user_id, limit=5),
+    })
 
 
 @app.get("/export/summary")

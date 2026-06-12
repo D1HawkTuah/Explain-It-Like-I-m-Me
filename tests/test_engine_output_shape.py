@@ -55,6 +55,41 @@ def test_gravity_topic_includes_specific_science_content():
     assert "9.8 m/s^2" in text
 
 
+def test_compound_interest_explanation_uses_real_finance_content():
+    engine = EILIMEngine()
+    profile = UserProfile(
+        user_id="u6",
+        display_name="Saver",
+        knowledge_level="beginner",
+        learning_style="step-by-step",
+        interests=["finance"],
+        domains_of_focus=["money"],
+    )
+
+    text = engine.explain(topic="Explain compound interest", profile=profile, recent_topics=[])
+
+    assert "interest on interest" in text.lower()
+    assert "savings account" in text.lower() or "bank" in text.lower()
+    assert "learning explain compound interest" not in text.lower()
+
+
+def test_explanations_use_profile_tailoring_for_any_topic():
+    engine = EILIMEngine()
+    profile = UserProfile(
+        user_id="u7",
+        display_name="Gamer",
+        knowledge_level="beginner",
+        learning_style="step-by-step",
+        interests=["gaming"],
+        domains_of_focus=["science"],
+    )
+
+    text = engine.explain(topic="gravity", profile=profile, recent_topics=[])
+
+    assert "gaming" in text.lower()
+    assert "science" in text.lower()
+
+
 def test_generic_prompt_uses_topic_direct_explanation_not_meta_learning_copy():
     engine = EILIMEngine()
     profile = UserProfile(

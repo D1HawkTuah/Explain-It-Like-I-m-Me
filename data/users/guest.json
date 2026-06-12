@@ -1,11 +1,11 @@
 {
   "user_id": "guest",
-  "display_name": "nihthan",
+  "display_name": "bowz",
   "knowledge_level": "beginner",
-  "learning_style": "story",
+  "learning_style": "step-by-step",
   "interests": [],
   "domains_of_focus": [],
-  "self_explainer_sample": "I like long walks on the beach",
-  "onboarding_survey": "visual-map",
-  "calibration_quiz_score": 0
+  "self_explainer_sample": "",
+  "onboarding_survey": "examples-first",
+  "calibration_quiz_score": -1
 }

@@ -163,6 +163,21 @@ def test_profile_round_trip():
         assert loaded.interests == original.interests
 
 
+def test_mastery_review_intervals_stay_reasonable():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JSONStorage(root=tmpdir)
+
+        for _ in range(5):
+            storage.update_mastery_for_feedback(user_id="u2", topic="algebra", rating=5)
+
+        overview = storage.mastery_overview(user_id="u2")
+        record = storage.load_mastery_record(user_id="u2", topic="algebra")
+
+        assert record is not None
+        assert record.interval_days <= 30
+        assert overview["next_due_days"] <= 30
+
+
 def test_mastery_record_updates_and_persists():
     with tempfile.TemporaryDirectory() as tmpdir:
         storage = JSONStorage(root=tmpdir)
